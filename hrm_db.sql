@@ -367,10 +367,10 @@ UPDATE departments SET manager_id = 2 WHERE name = 'HR';
 --   new BCryptPasswordEncoder().encode("123456")
 -- ------------------------------------------------------------
 INSERT INTO users (username, password, role, employee_id, is_active) VALUES
-    ('admin',     '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'ADMIN',    1, TRUE),
-    ('hr1',       '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'HR',       2, TRUE),
-    ('manager1',  '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'MANAGER',  3, TRUE),
-    ('employee1', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'EMPLOYEE', 4, TRUE);
+    ('admin',     '$2a$10$bf4Hxqk.ybSYZVBbNXA.2e5qJjCWmSlm.7krYCMB8GT.pYODCymcS', 'ADMIN',    1, TRUE),
+    ('hr1',       '$2a$10$bf4Hxqk.ybSYZVBbNXA.2e5qJjCWmSlm.7krYCMB8GT.pYODCymcS', 'HR',       2, TRUE),
+    ('manager1',  '$2a$10$bf4Hxqk.ybSYZVBbNXA.2e5qJjCWmSlm.7krYCMB8GT.pYODCymcS', 'MANAGER',  3, TRUE),
+    ('employee1', '$2a$10$bf4Hxqk.ybSYZVBbNXA.2e5qJjCWmSlm.7krYCMB8GT.pYODCymcS', 'EMPLOYEE', 4, TRUE);
 
 -- ------------------------------------------------------------
 -- Attendance (tháng 3/2025)
