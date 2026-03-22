@@ -1,14 +1,14 @@
-package org.example.ensembled_project.auth;
+package org.example.hrmsystem.service;
 
-import org.example.ensembled_project.auth.dto.LoginRequest;
-import org.example.ensembled_project.auth.dto.LoginResult;
-import org.example.ensembled_project.auth.dto.LoginResponse;
-import org.example.ensembled_project.auth.token.RefreshToken;
-import org.example.ensembled_project.auth.token.RefreshTokenRepository;
-import org.example.ensembled_project.security.AppUserDetails;
-import org.example.ensembled_project.security.JwtService;
-import org.example.ensembled_project.user.UserAccount;
-import org.example.ensembled_project.user.UserAccountRepository;
+import org.example.hrmsystem.dto.LoginRequest;
+import org.example.hrmsystem.dto.LoginResult;
+import org.example.hrmsystem.dto.LoginResponse;
+import org.example.hrmsystem.model.RefreshToken;
+import org.example.hrmsystem.model.UserAccount;
+import org.example.hrmsystem.repository.RefreshTokenRepository;
+import org.example.hrmsystem.repository.UserAccountRepository;
+import org.example.hrmsystem.security.AppUserDetails;
+import org.example.hrmsystem.security.JwtService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.BadCredentialsException;

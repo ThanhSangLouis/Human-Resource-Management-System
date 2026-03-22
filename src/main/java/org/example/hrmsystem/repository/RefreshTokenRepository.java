@@ -1,6 +1,7 @@
-package org.example.ensembled_project.auth.token;
+package org.example.hrmsystem.repository;
 
 import java.util.Optional;
+import org.example.hrmsystem.model.RefreshToken;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long> {

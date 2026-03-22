@@ -1,7 +1,7 @@
-package org.example.ensembled_project.security;
+package org.example.hrmsystem.security;
 
-import org.example.ensembled_project.user.UserAccount;
-import org.example.ensembled_project.user.UserAccountRepository;
+import org.example.hrmsystem.model.UserAccount;
+import org.example.hrmsystem.repository.UserAccountRepository;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;

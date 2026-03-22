@@ -1,5 +1,7 @@
-package org.example.ensembled_project.security;
+package org.example.hrmsystem.config;
 
+import org.example.hrmsystem.security.AppUserDetailsService;
+import org.example.hrmsystem.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;

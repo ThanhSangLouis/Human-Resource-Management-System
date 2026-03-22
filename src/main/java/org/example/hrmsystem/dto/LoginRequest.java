@@ -1,4 +1,4 @@
-package org.example.ensembled_project.auth.dto;
+package org.example.hrmsystem.dto;
 
 import jakarta.validation.constraints.NotBlank;
 

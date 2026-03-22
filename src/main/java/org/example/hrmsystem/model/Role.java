@@ -1,4 +1,4 @@
-package org.example.ensembled_project.user;
+package org.example.hrmsystem.model;
 
 public enum Role {
     ADMIN,
