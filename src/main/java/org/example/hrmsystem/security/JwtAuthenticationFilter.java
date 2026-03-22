@@ -1,4 +1,4 @@
-package org.example.ensembled_project.security;
+package org.example.hrmsystem.security;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

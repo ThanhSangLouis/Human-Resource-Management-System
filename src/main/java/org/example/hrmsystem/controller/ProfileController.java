@@ -1,4 +1,4 @@
-package org.example.ensembled_project.auth;
+package org.example.hrmsystem.controller;
 
 import java.util.Map;
 import org.springframework.security.core.Authentication;

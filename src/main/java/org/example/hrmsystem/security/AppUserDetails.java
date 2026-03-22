@@ -1,8 +1,8 @@
-package org.example.ensembled_project.security;
+package org.example.hrmsystem.security;
 
 import java.util.Collection;
 import java.util.List;
-import org.example.ensembled_project.user.UserAccount;
+import org.example.hrmsystem.model.UserAccount;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;

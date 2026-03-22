@@ -1,10 +1,11 @@
-package org.example.ensembled_project.auth;
+package org.example.hrmsystem.controller;
 
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
-import org.example.ensembled_project.auth.dto.LoginRequest;
-import org.example.ensembled_project.auth.dto.LoginResult;
-import org.example.ensembled_project.auth.dto.LoginResponse;
+import org.example.hrmsystem.dto.LoginRequest;
+import org.example.hrmsystem.dto.LoginResult;
+import org.example.hrmsystem.dto.LoginResponse;
+import org.example.hrmsystem.service.AuthService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;

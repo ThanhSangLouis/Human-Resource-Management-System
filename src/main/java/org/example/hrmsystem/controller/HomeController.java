@@ -1,4 +1,4 @@
-package org.example.ensembled_project;
+package org.example.hrmsystem.controller;
 
 import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;

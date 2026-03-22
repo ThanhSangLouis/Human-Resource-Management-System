@@ -1,4 +1,4 @@
-package org.example.ensembled_project;
+package org.example.hrmsystem;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

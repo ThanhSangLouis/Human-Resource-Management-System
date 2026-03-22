@@ -1,4 +1,4 @@
-package org.example.ensembled_project.security;
+package org.example.hrmsystem.security;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
