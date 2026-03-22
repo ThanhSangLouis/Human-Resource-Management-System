@@ -374,15 +374,29 @@ INSERT INTO users (username, password, role, employee_id, is_active) VALUES
 
 -- ------------------------------------------------------------
 -- Attendance (tháng 3/2025)
+-- Ca làm việc: 09:00 – 17:00 (span-based, lunch included)
+-- LATE        : check-in sau 09:00
+-- HALF_DAY    : span < 4h
+-- PRESENT     : check-in <= 09:00 và span >= 4h
+-- overtime_hours = phút sau 17:00 / 60  (chỉ > 0 nếu check-out sau 17:00)
 -- ------------------------------------------------------------
 INSERT INTO attendance
     (employee_id, check_in, check_out, work_hours, overtime_hours, attendance_date, status, note)
 VALUES
-    (1, '2025-03-01 08:00:00', '2025-03-01 18:00:00', 8.00, 1.00, '2025-03-01', 'PRESENT',  NULL),
-    (2, '2025-03-01 08:20:00', '2025-03-01 17:00:00', 7.67, 0.00, '2025-03-01', 'LATE',     'Late 20 minutes'),
-    (3, '2025-03-01 08:00:00', '2025-03-01 12:00:00', 4.00, 0.00, '2025-03-01', 'HALF_DAY', 'Doctor appointment afternoon'),
-    (4, NULL,                  NULL,                  0.00, 0.00, '2025-03-01', 'ON_LEAVE',  'Annual leave approved'),
-    (5, '2025-03-01 08:05:00', '2025-03-01 17:30:00', 8.42, 0.42, '2025-03-01', 'PRESENT',  NULL);
+    -- emp 1: vào đúng giờ 09:00, về 18:00 → OT = 1h (sau 17:00)
+    (1, '2025-03-01 09:00:00', '2025-03-01 18:00:00', 9.00, 1.00, '2025-03-01', 'PRESENT',  NULL),
+
+    -- emp 2: vào trễ 09:20, về đúng 17:00 → LATE, span = 7.67h, OT = 0
+    (2, '2025-03-01 09:20:00', '2025-03-01 17:00:00', 7.67, 0.00, '2025-03-01', 'LATE',     'Trễ 20 phút'),
+
+    -- emp 3: vào đúng giờ 09:00, về 12:30 → HALF_DAY (span 3.5h < 4h), OT = 0
+    (3, '2025-03-01 09:00:00', '2025-03-01 12:30:00', 3.50, 0.00, '2025-03-01', 'HALF_DAY', 'Nghỉ chiều khám bệnh'),
+
+    -- emp 4: nghỉ phép cả ngày → ON_LEAVE, không có check-in/check-out
+    (4, NULL,                  NULL,                  0.00, 0.00, '2025-03-01', 'ON_LEAVE',  'Nghỉ phép năm đã duyệt'),
+
+    -- emp 5: vào đúng giờ 09:00, về 17:30 → PRESENT, span = 8.5h, OT = 0.5h
+    (5, '2025-03-01 09:00:00', '2025-03-01 17:30:00', 8.50, 0.50, '2025-03-01', 'PRESENT',  NULL);
 
 -- ------------------------------------------------------------
 -- Leave Requests

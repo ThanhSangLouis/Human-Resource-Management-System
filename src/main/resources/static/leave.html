@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leave Request — HRM System</title>
+    <style>
+        :root {
+            --blue-50:  #eff6ff;
+            --blue-100: #dbeafe;
+            --blue-200: #bfdbfe;
+            --blue-500: #3b82f6;
+            --blue-600: #2563eb;
+            --blue-700: #1d4ed8;
+            --blue-800: #1e40af;
+            --blue-900: #1e3a8a;
+            --slate-50:  #f8fafc;
+            --slate-100: #f1f5f9;
+            --slate-200: #e2e8f0;
+            --slate-400: #94a3b8;
+            --slate-500: #64748b;
+            --slate-700: #334155;
+            --slate-800: #1e293b;
+            --slate-900: #0f172a;
+            --green-100: #dcfce7;
+            --green-600: #16a34a;
+            --green-700: #15803d;
+            --red-100:   #fee2e2;
+            --red-600:   #dc2626;
+            --amber-100: #fef3c7;
+            --amber-600: #d97706;
+            --white: #ffffff;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: "Segoe UI", system-ui, Arial, sans-serif;
+            background: linear-gradient(135deg, var(--blue-900) 0%, var(--slate-900) 100%);
+            min-height: 100vh;
+            color: var(--slate-800);
+            padding: 24px 16px;
+        }
+
+        /* ── Top nav ── */
+        .topbar {
+            max-width: 960px;
+            margin: 0 auto 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .topbar-left { display: flex; align-items: center; gap: 10px; }
+        .logo {
+            width: 38px; height: 38px;
+            background: var(--blue-600);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px;
+        }
+        .site-name { font-size: 18px; font-weight: 700; color: var(--white); }
+        .site-name span { color: var(--blue-200); }
+        .topbar-right { display: flex; align-items: center; gap: 10px; }
+        #userBadge {
+            font-size: 13px; color: var(--blue-200);
+            background: rgba(255,255,255,.08);
+            padding: 5px 12px; border-radius: 20px; display: none;
+        }
+        #btnLogout {
+            font-size: 13px; font-weight: 600;
+            padding: 6px 14px; border-radius: 8px; border: none; cursor: pointer;
+            background: rgba(255,255,255,.12); color: var(--white); display: none;
+            transition: background .2s;
+        }
+        #btnLogout:hover { background: rgba(255,255,255,.22); }
+
+        /* ── Nav links ── */
+        .nav-links {
+            max-width: 960px;
+            margin: 0 auto 20px;
+            display: flex;
+            gap: 10px;
+        }
+        .nav-link {
+            font-size: 13px; font-weight: 500;
+            color: var(--blue-200);
+            background: rgba(255,255,255,.08);
+            padding: 6px 14px; border-radius: 8px;
+            text-decoration: none;
+            transition: background .2s;
+        }
+        .nav-link:hover { background: rgba(255,255,255,.18); }
+        .nav-link.active { background: var(--blue-600); color: var(--white); }
+
+        /* ── Layout ── */
+        .layout {
+            max-width: 960px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 340px 1fr;
+            gap: 20px;
+            align-items: start;
+        }
+
+        /* ── Card ── */
+        .card {
+            background: var(--white);
+            border-radius: 20px;
+            box-shadow: 0 24px 60px rgba(0,0,0,.3);
+            overflow: hidden;
+        }
+        .card-header {
+            background: linear-gradient(135deg, var(--blue-600), var(--blue-800));
+            padding: 22px 26px;
+            color: var(--white);
+        }
+        .card-header h2 { font-size: 17px; font-weight: 700; margin-bottom: 3px; }
+        .card-header p  { font-size: 13px; opacity: .8; }
+        .card-body { padding: 22px 26px; }
+
+        /* ── Login section ── */
+        #loginSection  { display: block; }
+        #mainSection   { display: none; }
+
+        /* ── Form ── */
+        .field { margin-bottom: 14px; }
+        label {
+            display: block; font-size: 13px; font-weight: 500;
+            color: var(--slate-700); margin-bottom: 5px;
+        }
+        input[type="text"], input[type="password"], input[type="date"],
+        select, textarea {
+            width: 100%; padding: 10px 13px;
+            border: 1.5px solid var(--slate-200); border-radius: 10px;
+            font-size: 14px; outline: none; font-family: inherit;
+            background: var(--slate-50);
+            transition: border-color .2s, box-shadow .2s;
+        }
+        textarea { resize: vertical; min-height: 70px; }
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--blue-500);
+            box-shadow: 0 0 0 3px rgba(59,130,246,.15);
+            background: var(--white);
+        }
+        .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+        /* ── Buttons ── */
+        .btn-primary {
+            background: var(--blue-600); color: var(--white);
+            border: none; border-radius: 10px;
+            padding: 11px 20px; font-size: 14px; font-weight: 600;
+            cursor: pointer; transition: background .2s, transform .1s; width: 100%;
+        }
+        .btn-primary:hover { background: var(--blue-700); }
+        .btn-primary:active { transform: translateY(1px); }
+        .btn-primary:disabled { background: var(--slate-400); cursor: not-allowed; transform: none; }
+
+        /* ── Summary chips ── */
+        .summary-bar {
+            display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;
+        }
+        .chip {
+            font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 20px;
+            background: var(--blue-50); color: var(--blue-700);
+            border: 1px solid var(--blue-200);
+        }
+
+        /* ── Table ── */
+        .table-wrap {
+            overflow-x: auto;
+            border-radius: 12px;
+            border: 1.5px solid var(--slate-200);
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        thead { background: var(--blue-600); }
+        thead th {
+            padding: 11px 14px; text-align: left;
+            color: var(--white); font-weight: 600; white-space: nowrap;
+        }
+        tbody tr { border-bottom: 1px solid var(--slate-100); transition: background .15s; }
+        tbody tr:last-child { border-bottom: none; }
+        tbody tr:hover { background: var(--blue-50); }
+        tbody td { padding: 11px 14px; color: var(--slate-700); white-space: nowrap; }
+        .td-reason { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        .empty-row td {
+            text-align: center; color: var(--slate-400);
+            padding: 32px; font-size: 13px;
+        }
+
+        /* ── Badge ── */
+        .badge {
+            display: inline-block; font-size: 11px; font-weight: 600;
+            padding: 2px 9px; border-radius: 20px;
+        }
+        .badge-pending  { background: var(--amber-100); color: var(--amber-600); }
+        .badge-approved { background: var(--green-100); color: var(--green-700); }
+        .badge-rejected { background: var(--red-100);   color: var(--red-600); }
+
+        /* ── Pagination ── */
+        .pagination {
+            display: flex; align-items: center; justify-content: center;
+            gap: 8px; margin-top: 16px;
+        }
+        .page-btn {
+            font-size: 13px; font-weight: 500;
+            padding: 6px 12px; border-radius: 8px;
+            border: 1.5px solid var(--blue-200);
+            background: var(--white); color: var(--blue-700);
+            cursor: pointer; transition: all .2s;
+        }
+        .page-btn:hover:not(:disabled) { background: var(--blue-600); color: var(--white); border-color: var(--blue-600); }
+        .page-btn:disabled { opacity: .4; cursor: not-allowed; }
+        .page-info { font-size: 13px; color: var(--slate-500); }
+
+        /* ── Toast ── */
+        #toast {
+            position: fixed; bottom: 28px; left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: var(--slate-800); color: var(--white);
+            padding: 12px 22px; border-radius: 12px;
+            font-size: 14px; font-weight: 500;
+            box-shadow: 0 8px 24px rgba(0,0,0,.3);
+            transition: transform .3s ease; z-index: 999;
+            max-width: 380px; text-align: center; pointer-events: none;
+        }
+        #toast.show { transform: translateX(-50%) translateY(0); }
+        #toast.toast-ok  { background: var(--green-600); }
+        #toast.toast-err { background: var(--red-600); }
+
+        /* ── Responsive ── */
+        @media (max-width: 700px) {
+            .layout { grid-template-columns: 1fr; }
+            .row-2  { grid-template-columns: 1fr; }
+            .card-body { padding: 18px 16px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Top nav -->
+<div class="topbar">
+    <div class="topbar-left">
+        <div class="logo">🏢</div>
+        <span class="site-name">HRM <span>System</span></span>
+    </div>
+    <div class="topbar-right">
+        <span id="userBadge"></span>
+        <button id="btnLogout">Sign out</button>
+    </div>
+</div>
+
+<!-- Nav links -->
+<div class="nav-links">
+    <a href="/attendance.html" class="nav-link">⏱ Attendance</a>
+    <a href="/leave.html" class="nav-link active">📋 Leave Request</a>
+</div>
+
+<!-- ══ LOGIN SECTION ══ -->
+<div id="loginSection" style="max-width:420px;margin:0 auto;">
+    <div class="card">
+        <div class="card-header">
+            <h2>Sign in to continue</h2>
+            <p>Access your leave request portal</p>
+        </div>
+        <div class="card-body">
+            <div class="field">
+                <label for="loginUser">Username</label>
+                <input id="loginUser" type="text" placeholder="Enter username" autocomplete="username">
+            </div>
+            <div class="field">
+                <label for="loginPass">Password</label>
+                <input id="loginPass" type="password" placeholder="Enter password" autocomplete="current-password">
+            </div>
+            <button id="btnLogin" class="btn-primary">Sign In</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══ MAIN SECTION ══ -->
+<div id="mainSection" class="layout">
+
+    <!-- Left: Create form -->
+    <div class="card">
+        <div class="card-header">
+            <h2>📝 New Leave Request</h2>
+            <p>Submit a leave request for approval</p>
+        </div>
+        <div class="card-body">
+            <div class="field">
+                <label for="leaveType">Leave Type</label>
+                <select id="leaveType">
+                    <option value="">— Select type —</option>
+                    <option value="ANNUAL">🌴 Annual Leave</option>
+                    <option value="SICK">🤒 Sick Leave</option>
+                    <option value="MATERNITY">👶 Maternity Leave</option>
+                    <option value="UNPAID">💼 Unpaid Leave</option>
+                    <option value="OTHER">📌 Other</option>
+                </select>
+            </div>
+            <div class="row-2">
+                <div class="field">
+                    <label for="startDate">Start Date</label>
+                    <input id="startDate" type="date">
+                </div>
+                <div class="field">
+                    <label for="endDate">End Date</label>
+                    <input id="endDate" type="date">
+                </div>
+            </div>
+            <div id="dayCount" style="font-size:13px;color:var(--blue-700);margin:-6px 0 12px;min-height:18px;"></div>
+            <div class="field">
+                <label for="reason">Reason <span style="color:var(--slate-400);font-weight:400">(optional)</span></label>
+                <textarea id="reason" placeholder="Briefly describe the reason for your leave..."></textarea>
+            </div>
+            <button id="btnSubmit" class="btn-primary">Submit Request</button>
+        </div>
+    </div>
+
+    <!-- Right: List -->
+    <div class="card">
+        <div class="card-header">
+            <h2>📄 My Leave Requests</h2>
+            <p>Your submitted leave history</p>
+        </div>
+        <div class="card-body">
+            <div class="summary-bar" id="summaryBar"></div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Start</th>
+                            <th>End</th>
+                            <th>Days</th>
+                            <th>Status</th>
+                            <th>Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaveTableBody">
+                        <tr class="empty-row"><td colspan="6">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="pagination" id="pagination"></div>
+        </div>
+    </div>
+
+</div><!-- /mainSection -->
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+    const TOKEN_KEY = "hrm_access_token";
+
+    // ── DOM ──
+    const loginSection  = document.getElementById("loginSection");
+    const mainSection   = document.getElementById("mainSection");
+    const loginUser     = document.getElementById("loginUser");
+    const loginPass     = document.getElementById("loginPass");
+    const btnLogin      = document.getElementById("btnLogin");
+    const btnLogout     = document.getElementById("btnLogout");
+    const userBadge     = document.getElementById("userBadge");
+    const btnSubmit     = document.getElementById("btnSubmit");
+    const leaveType     = document.getElementById("leaveType");
+    const startDate     = document.getElementById("startDate");
+    const endDate       = document.getElementById("endDate");
+    const reason        = document.getElementById("reason");
+    const dayCount      = document.getElementById("dayCount");
+    const leaveTableBody= document.getElementById("leaveTableBody");
+    const pagination    = document.getElementById("pagination");
+    const summaryBar    = document.getElementById("summaryBar");
+    const toast         = document.getElementById("toast");
+
+    let currentPage = 0;
+    const PAGE_SIZE = 8;
+
+    // ── Set min date = today ──
+    const todayStr = new Date().toISOString().split("T")[0];
+    startDate.min = todayStr;
+    endDate.min   = todayStr;
+
+    // ── Day count preview ──
+    function updateDayCount() {
+        const s = startDate.value, e = endDate.value;
+        if (!s || !e) { dayCount.textContent = ""; return; }
+        const diff = Math.round((new Date(e) - new Date(s)) / 86400000) + 1;
+        if (diff < 1) {
+            dayCount.textContent = "⚠ End date must be on or after start date";
+            dayCount.style.color = "var(--red-600)";
+        } else {
+            dayCount.textContent = `📅 ${diff} day${diff > 1 ? "s" : ""}`;
+            dayCount.style.color = "var(--blue-700)";
+        }
+    }
+    startDate.addEventListener("change", () => {
+        if (endDate.value && endDate.value < startDate.value) endDate.value = startDate.value;
+        endDate.min = startDate.value;
+        updateDayCount();
+    });
+    endDate.addEventListener("change", updateDayCount);
+
+    // ── Toast ──
+    let toastTimer;
+    function showToast(msg, type = "ok") {
+        clearTimeout(toastTimer);
+        toast.textContent = msg;
+        toast.className = `show toast-${type}`;
+        toastTimer = setTimeout(() => { toast.className = ""; }, 3500);
+    }
+
+    // ── API helper ──
+    function getToken() { return localStorage.getItem(TOKEN_KEY) || ""; }
+    async function apiFetch(url, options = {}) {
+        const token = getToken();
+        const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+        if (token) headers["Authorization"] = "Bearer " + token;
+        const res = await fetch(url, { ...options, headers, credentials: "include" });
+        const text = await res.text();
+        const data = text ? JSON.parse(text) : {};
+        return { ok: res.ok, status: res.status, data };
+    }
+
+    // ── Format ──
+    function fmtDate(iso) {
+        if (!iso) return "—";
+        return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+    }
+    const TYPE_LABEL = {
+        ANNUAL: "🌴 Annual", SICK: "🤒 Sick", MATERNITY: "👶 Maternity",
+        UNPAID: "💼 Unpaid", OTHER: "📌 Other"
+    };
+    function badgeHtml(status) {
+        const cls = { PENDING: "badge-pending", APPROVED: "badge-approved", REJECTED: "badge-rejected" };
+        const label = { PENDING: "Pending", APPROVED: "Approved", REJECTED: "Rejected" };
+        return `<span class="badge ${cls[status] || ''}">${label[status] || status}</span>`;
+    }
+
+    // ── Render table ──
+    function renderTable(items, totalElements, totalPages, page) {
+        if (!items.length) {
+            leaveTableBody.innerHTML = `<tr class="empty-row"><td colspan="6">No leave requests found</td></tr>`;
+            summaryBar.innerHTML = "";
+            pagination.innerHTML = "";
+            return;
+        }
+
+        // Summary
+        const pending  = items.filter(i => i.status === "PENDING").length;
+        const approved = items.filter(i => i.status === "APPROVED").length;
+        const rejected = items.filter(i => i.status === "REJECTED").length;
+        summaryBar.innerHTML =
+            `<span class="chip">Total: ${totalElements}</span>` +
+            (pending  ? `<span class="chip" style="background:var(--amber-100);color:var(--amber-600);border-color:var(--amber-600)">Pending: ${pending}</span>` : "") +
+            (approved ? `<span class="chip" style="background:var(--green-100);color:var(--green-700);border-color:var(--green-700)">Approved: ${approved}</span>` : "") +
+            (rejected ? `<span class="chip" style="background:var(--red-100);color:var(--red-600);border-color:var(--red-600)">Rejected: ${rejected}</span>` : "");
+
+        // Rows
+        leaveTableBody.innerHTML = items.map(lr => `
+            <tr>
+                <td>${TYPE_LABEL[lr.leaveType] || lr.leaveType}</td>
+                <td>${fmtDate(lr.startDate)}</td>
+                <td>${fmtDate(lr.endDate)}</td>
+                <td style="text-align:center;font-weight:600;color:var(--blue-700)">${lr.totalDays}</td>
+                <td>${badgeHtml(lr.status)}</td>
+                <td class="td-reason" title="${lr.reason || ''}">${lr.reason || '<span style="color:var(--slate-400)">—</span>'}</td>
+            </tr>
+        `).join("");
+
+        // Pagination
+        pagination.innerHTML = "";
+        if (totalPages <= 1) return;
+        const prev = document.createElement("button");
+        prev.className = "page-btn"; prev.textContent = "← Prev";
+        prev.disabled = (page === 0);
+        prev.onclick = () => loadLeaves(page - 1);
+        pagination.appendChild(prev);
+
+        const info = document.createElement("span");
+        info.className = "page-info";
+        info.textContent = `Page ${page + 1} / ${totalPages}`;
+        pagination.appendChild(info);
+
+        const next = document.createElement("button");
+        next.className = "page-btn"; next.textContent = "Next →";
+        next.disabled = (page >= totalPages - 1);
+        next.onclick = () => loadLeaves(page + 1);
+        pagination.appendChild(next);
+    }
+
+    // ── Load leave list ──
+    async function loadLeaves(page = 0) {
+        currentPage = page;
+        const { ok, data } = await apiFetch(`/api/leave/my?page=${page}&size=${PAGE_SIZE}`);
+        if (!ok) { leaveTableBody.innerHTML = `<tr class="empty-row"><td colspan="6">Failed to load</td></tr>`; return; }
+        renderTable(data.content || [], data.totalElements || 0, data.totalPages || 0, data.page || 0);
+    }
+
+    // ── Show/hide sections ──
+    function showMain(username) {
+        loginSection.style.display = "none";
+        mainSection.style.display  = "grid";
+        userBadge.style.display    = "inline";
+        userBadge.textContent      = "👤 " + username;
+        btnLogout.style.display    = "inline";
+        loadLeaves(0);
+    }
+    function showLogin() {
+        loginSection.style.display = "block";
+        mainSection.style.display  = "none";
+        userBadge.style.display    = "none";
+        btnLogout.style.display    = "none";
+        loginPass.value            = "";
+    }
+
+    // ── Init ──
+    (function init() {
+        const token = getToken();
+        if (!token) { showLogin(); return; }
+        try {
+            const payload = JSON.parse(atob(token.split(".")[1]));
+            if (Date.now() >= payload.exp * 1000) { localStorage.removeItem(TOKEN_KEY); showLogin(); return; }
+            showMain(payload.sub || "User");
+        } catch (e) { showLogin(); }
+    })();
+
+    // ── Login ──
+    btnLogin.addEventListener("click", async () => {
+        const u = loginUser.value.trim(), p = loginPass.value;
+        if (!u || !p) { showToast("Please enter username and password", "err"); return; }
+        btnLogin.disabled = true; btnLogin.textContent = "Signing in...";
+        const { ok, data } = await apiFetch("/api/auth/login", {
+            method: "POST", body: JSON.stringify({ username: u, password: p })
+        });
+        btnLogin.disabled = false; btnLogin.textContent = "Sign In";
+        if (!ok || !data.accessToken) { showToast(data.message || "Login failed", "err"); return; }
+        localStorage.setItem(TOKEN_KEY, data.accessToken);
+        showToast("Welcome, " + (data.username || u) + "!", "ok");
+        showMain(data.username || u);
+    });
+    loginPass.addEventListener("keydown", e => { if (e.key === "Enter") btnLogin.click(); });
+
+    // ── Logout ──
+    btnLogout.addEventListener("click", async () => {
+        await apiFetch("/api/auth/logout", { method: "POST" });
+        localStorage.removeItem(TOKEN_KEY);
+        showToast("Signed out", "ok");
+        showLogin();
+    });
+
+    // ── Submit leave ──
+    btnSubmit.addEventListener("click", async () => {
+        const type = leaveType.value;
+        const sd   = startDate.value;
+        const ed   = endDate.value;
+
+        if (!type) { showToast("Please select a leave type", "err"); return; }
+        if (!sd)   { showToast("Please select a start date", "err"); return; }
+        if (!ed)   { showToast("Please select an end date", "err"); return; }
+        if (ed < sd) { showToast("End date must be on or after start date", "err"); return; }
+
+        btnSubmit.disabled = true; btnSubmit.textContent = "Submitting...";
+        const { ok, data } = await apiFetch("/api/leave", {
+            method: "POST",
+            body: JSON.stringify({
+                leaveType: type,
+                startDate: sd,
+                endDate:   ed,
+                reason:    reason.value.trim() || null
+            })
+        });
+        btnSubmit.disabled = false; btnSubmit.textContent = "Submit Request";
+
+        if (!ok) { showToast(data.message || "Failed to submit", "err"); return; }
+
+        showToast(data.message || "Leave request submitted!", "ok");
+        leaveType.value = ""; startDate.value = ""; endDate.value = "";
+        reason.value = ""; dayCount.textContent = "";
+        loadLeaves(0);
+    });
+</script>
+</body>
+</html>
