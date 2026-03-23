@@ -511,25 +511,7 @@
 </head>
 <body>
 
-<!-- ═══════════════════════════════════════
-     LOGIN GATE (nếu chưa có token)
-════════════════════════════════════════ -->
-<div id="login-gate">
-  <div class="login-card">
-    <div class="login-title">HRM System</div>
-    <div class="login-sub">Đăng nhập để tiếp tục</div>
-    <div class="form-group">
-      <label>Tên đăng nhập <span class="req">*</span></label>
-      <input type="text" id="li-username" placeholder="admin / hr1 / manager1..." />
-    </div>
-    <div class="form-group">
-      <label>Mật khẩu <span class="req">*</span></label>
-      <input type="text" id="li-password" placeholder="123456" />
-    </div>
-    <button class="btn-primary" onclick="doLogin()">Đăng nhập</button>
-    <div id="login-error">Sai tên đăng nhập hoặc mật khẩu</div>
-  </div>
-</div>
+
 
 <!-- ═══════════════════════════════════════
      TOPBAR
@@ -574,7 +556,7 @@
     </a>
 
     <div class="sidebar-section-title">Công cụ quản lý</div>
-    <a class="sidebar-item" href="#">
+    <a class="sidebar-item" href="employees.html">
       <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       Quản lý nhân viên
     </a>
@@ -730,10 +712,7 @@
 
   // ── Auth ─────────────────────────────────────────────────────────────────
   function init() {
-    if (!token) {
-      document.getElementById('login-gate').classList.add('show');
-      return;
-    }
+    if (!token) { window.location.href = '/login'; return; }
     renderUser();
     loadDepartments();
   }
@@ -746,36 +725,9 @@
     }
   }
 
-  async function doLogin() {
-    const username = document.getElementById('li-username').value.trim();
-    const password = document.getElementById('li-password').value;
-    document.getElementById('login-error').style.display = 'none';
-    try {
-      const res = await fetch(`${API_BASE}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      });
-      if (!res.ok) throw new Error('Unauthorized');
-      const data = await res.json();
-      token = data.body?.accessToken || data.accessToken;
-      currentUser = { username: data.body?.username || data.username, role: data.body?.role || data.role };
-      localStorage.setItem('hrm_access_token', token);
-      localStorage.setItem('hrm_user', JSON.stringify(currentUser));
-      localStorage.setItem('hrm_refresh_token', data.body?.refreshToken || data.refreshToken || '');
-      document.getElementById('login-gate').classList.remove('show');
-      renderUser();
-      loadDepartments();
-    } catch {
-      document.getElementById('login-error').style.display = 'block';
-    }
-  }
-
   function logout() {
     localStorage.clear();
-    token = '';
-    currentUser = null;
-    document.getElementById('login-gate').classList.add('show');
+    window.location.href = '/login';
   }
 
   // ── API helpers ──────────────────────────────────────────────────────────
@@ -1041,11 +993,6 @@
   function escHtml(str) {
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
-
-  // Enter key on login
-  document.getElementById('li-password').addEventListener('keydown', e => {
-    if (e.key === 'Enter') doLogin();
-  });
 
   // Init
   init();

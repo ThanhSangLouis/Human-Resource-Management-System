@@ -52,9 +52,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/attendance.html").permitAll()
                         .requestMatchers(HttpMethod.GET, "/leave.html").permitAll()
                         .requestMatchers(HttpMethod.GET, "/departments.html").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/employees.html").permitAll()
                         .requestMatchers("/api/attendance/**").authenticated()
                         .requestMatchers("/api/leave/**").authenticated()
                         .requestMatchers("/api/departments/**").authenticated()
+                        .requestMatchers("/api/employees/**").authenticated()
                         .anyRequest().authenticated())
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
