@@ -166,12 +166,23 @@
             }
 
             localStorage.setItem(ACCESS_TOKEN_KEY, token);
-            setStatus("Login successful", true);
-            resultEl.textContent = JSON.stringify(
-                { message: "Access token saved to localStorage", username: data.username, role: data.role },
-                null,
-                2
-            );
+            localStorage.setItem("hrm_user", JSON.stringify({
+                username: data.username,
+                role: data.role,
+                employeeId: data.employeeId
+            }));
+            localStorage.setItem("hrm_refresh_token", data.refreshToken || "");
+
+            setStatus("Đăng nhập thành công! Đang chuyển trang...", true);
+
+            const roleRedirect = {
+                ADMIN:    "/departments.html",
+                HR:       "/departments.html",
+                MANAGER:  "/employees.html",
+                EMPLOYEE: "/attendance.html"
+            };
+            const redirectTo = roleRedirect[data.role] || "/departments.html";
+            setTimeout(() => { window.location.href = redirectTo; }, 500);
         } catch (err) {
             localStorage.removeItem(ACCESS_TOKEN_KEY);
             setStatus("Request error", false);
