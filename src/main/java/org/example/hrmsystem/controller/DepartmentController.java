@@ -3,7 +3,9 @@ package org.example.hrmsystem.controller;
 import jakarta.validation.Valid;
 import org.example.hrmsystem.dto.DepartmentRequest;
 import org.example.hrmsystem.dto.DepartmentResponse;
+import org.example.hrmsystem.dto.EmployeeResponse;
 import org.example.hrmsystem.service.DepartmentService;
+import org.example.hrmsystem.service.EmployeeService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -20,9 +22,11 @@ import java.util.Map;
 public class DepartmentController {
 
     private final DepartmentService departmentService;
+    private final EmployeeService employeeService;
 
-    public DepartmentController(DepartmentService departmentService) {
+    public DepartmentController(DepartmentService departmentService, EmployeeService employeeService) {
         this.departmentService = departmentService;
+        this.employeeService = employeeService;
     }
 
     /**
@@ -52,6 +56,26 @@ public class DepartmentController {
     @PreAuthorize("hasAnyRole('ADMIN','HR','MANAGER')")
     public ResponseEntity<DepartmentResponse> getById(@PathVariable Long id) {
         return ResponseEntity.ok(departmentService.findById(id));
+    }
+
+    /**
+     * GET /api/departments/{id}/employees — danh sách nhân viên thuộc phòng (mặc định chỉ ACTIVE).
+     * Roles: ADMIN, HR, MANAGER
+     */
+    @GetMapping("/{id}/employees")
+    @PreAuthorize("hasAnyRole('ADMIN','HR','MANAGER')")
+    public ResponseEntity<Page<EmployeeResponse>> listEmployeesByDepartment(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size,
+            @RequestParam(defaultValue = "fullName,asc") String sort
+    ) {
+        departmentService.findById(id);
+        String[] sortParts = sort.split(",");
+        Sort.Direction dir = sortParts.length > 1 && sortParts[1].equalsIgnoreCase("desc")
+                ? Sort.Direction.DESC : Sort.Direction.ASC;
+        Pageable pageable = PageRequest.of(page, size, Sort.by(dir, sortParts[0]));
+        return ResponseEntity.ok(employeeService.findAll(null, "ACTIVE", id, pageable));
     }
 
     /**

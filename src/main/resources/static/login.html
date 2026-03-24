@@ -179,7 +179,7 @@
                 ADMIN:    "/departments.html",
                 HR:       "/departments.html",
                 MANAGER:  "/employees.html",
-                EMPLOYEE: "/attendance.html"
+                EMPLOYEE: "/worktime.html#attendance"
             };
             const redirectTo = roleRedirect[data.role] || "/departments.html";
             setTimeout(() => { window.location.href = redirectTo; }, 500);

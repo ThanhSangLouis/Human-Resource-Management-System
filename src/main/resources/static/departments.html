@@ -564,11 +564,11 @@
       <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M3 21V7l9-4 9 4v14"/><path d="M9 21v-6h6v6"/></svg>
       Danh sách phòng ban
     </a>
-    <a class="sidebar-item" href="attendance.html">
+    <a class="sidebar-item" href="worktime.html#attendance">
       <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
       Quản lý chấm công
     </a>
-    <a class="sidebar-item" href="leave.html">
+    <a class="sidebar-item" href="worktime.html#leave">
       <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
       Đơn nghỉ phép
     </a>
@@ -650,6 +650,14 @@
       <div class="form-group">
         <label>Mô tả</label>
         <textarea id="f-desc" placeholder="Mô tả ngắn về phòng ban..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Trưởng phòng</label>
+        <select id="f-manager" style="width:100%;padding:9px 12px;border:1px solid #dde2ee;border-radius:8px;font-size:13.5px;">
+          <option value="">— Không gán —</option>
+        </select>
+        <p style="font-size:11px;color:#8a94a6;margin-top:6px;">Sửa phòng ban: chỉ chọn nhân viên đã thuộc phòng này (theo hồ sơ nhân viên).</p>
+        <div class="error-msg" id="e-manager"></div>
       </div>
     </div>
     <div class="modal-footer">
@@ -875,12 +883,46 @@
   }
 
   // ── Modal helpers ─────────────────────────────────────────────────────────
-  function openCreateModal() {
+  async function loadManagerDropdownForCreate() {
+    const sel = document.getElementById('f-manager');
+    sel.innerHTML = '<option value="">— Không gán —</option>';
+    try {
+      const res = await apiFetch('/employees?status=ACTIVE&page=0&size=300&sort=fullName,asc');
+      if (!res.ok) return;
+      const data = await res.json();
+      (data.content || []).forEach(e => {
+        const o = document.createElement('option');
+        o.value = e.id;
+        o.textContent = e.fullName + (e.employeeCode ? ' (' + e.employeeCode + ')' : '');
+        sel.appendChild(o);
+      });
+    } catch (_) {}
+  }
+
+  async function loadManagerDropdownForEdit(deptId) {
+    const sel = document.getElementById('f-manager');
+    sel.innerHTML = '<option value="">— Không gán —</option>';
+    try {
+      const res = await apiFetch(`/departments/${deptId}/employees?page=0&size=200&sort=fullName,asc`);
+      if (!res.ok) return;
+      const data = await res.json();
+      (data.content || []).forEach(e => {
+        const o = document.createElement('option');
+        o.value = e.id;
+        o.textContent = e.fullName + (e.employeeCode ? ' (' + e.employeeCode + ')' : '');
+        sel.appendChild(o);
+      });
+    } catch (_) {}
+  }
+
+  async function openCreateModal() {
     document.getElementById('modal-title').textContent = 'Tạo phòng ban';
     document.getElementById('dept-id').value = '';
     document.getElementById('f-name').value = '';
     document.getElementById('f-desc').value = '';
     clearErrors();
+    await loadManagerDropdownForCreate();
+    document.getElementById('f-manager').value = '';
     document.getElementById('form-overlay').classList.add('show');
   }
 
@@ -894,6 +936,8 @@
       document.getElementById('f-name').value = dept.name;
       document.getElementById('f-desc').value = dept.description || '';
       clearErrors();
+      await loadManagerDropdownForEdit(id);
+      document.getElementById('f-manager').value = dept.managerId != null ? String(dept.managerId) : '';
       document.getElementById('form-overlay').classList.add('show');
     } catch {
       showToast('Không thể tải thông tin phòng ban', 'error');
@@ -912,7 +956,10 @@
   }
 
   function clearErrors() {
-    document.querySelectorAll('.error-msg').forEach(el => el.classList.remove('show'));
+    document.querySelectorAll('.error-msg').forEach(el => {
+      el.classList.remove('show');
+      el.textContent = '';
+    });
   }
 
   // ── Submit Form (Create / Update) ─────────────────────────────────────────
@@ -927,7 +974,12 @@
       return;
     }
 
-    const body = JSON.stringify({ name, description: desc || null });
+    const mgr = document.getElementById('f-manager').value;
+    const body = JSON.stringify({
+      name,
+      description: desc || null,
+      managerId: mgr ? Number(mgr) : null
+    });
     const isEdit = !!id;
 
     try {
@@ -940,6 +992,13 @@
         const err = await res.json();
         document.getElementById('e-name').textContent = err.message || 'Tên đã tồn tại';
         document.getElementById('e-name').classList.add('show');
+        return;
+      }
+      if (res.status === 400) {
+        const err = await res.json().catch(() => ({}));
+        const msg = err.message || 'Dữ liệu không hợp lệ';
+        document.getElementById('e-manager').textContent = msg;
+        document.getElementById('e-manager').classList.add('show');
         return;
       }
       if (!res.ok) throw new Error(await res.text());

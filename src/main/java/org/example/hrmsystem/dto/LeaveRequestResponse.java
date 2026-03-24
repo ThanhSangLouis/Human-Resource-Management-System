@@ -17,6 +17,7 @@ public class LeaveRequestResponse {
     private int totalDays;
     private String reason;
     private LeaveStatus status;
+    private Long approvedBy;
     private LocalDateTime approvedAt;
     private LocalDateTime createdAt;
     private String message;
@@ -27,6 +28,7 @@ public class LeaveRequestResponse {
             Long id, Long employeeId, String employeeName,
             LeaveType leaveType, LocalDate startDate, LocalDate endDate,
             int totalDays, String reason, LeaveStatus status,
+            Long approvedBy,
             LocalDateTime approvedAt, LocalDateTime createdAt, String message
     ) {
         this.id = id;
@@ -38,6 +40,7 @@ public class LeaveRequestResponse {
         this.totalDays = totalDays;
         this.reason = reason;
         this.status = status;
+        this.approvedBy = approvedBy;
         this.approvedAt = approvedAt;
         this.createdAt = createdAt;
         this.message = message;
@@ -52,6 +55,7 @@ public class LeaveRequestResponse {
     public int getTotalDays() { return totalDays; }
     public String getReason() { return reason; }
     public LeaveStatus getStatus() { return status; }
+    public Long getApprovedBy() { return approvedBy; }
     public LocalDateTime getApprovedAt() { return approvedAt; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public String getMessage() { return message; }

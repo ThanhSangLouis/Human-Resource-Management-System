@@ -51,6 +51,7 @@ public class DepartmentService {
         Department dept = new Department();
         dept.setName(name);
         dept.setDescription(request.getDescription());
+        validateManagerIdExists(request.getManagerId());
         dept.setManagerId(request.getManagerId());
         return toResponse(departmentRepository.save(dept));
     }
@@ -69,8 +70,30 @@ public class DepartmentService {
 
         dept.setName(name);
         dept.setDescription(request.getDescription());
+        validateManagerForDepartment(request.getManagerId(), id);
         dept.setManagerId(request.getManagerId());
         return toResponse(departmentRepository.save(dept));
+    }
+
+    private void validateManagerIdExists(Long managerId) {
+        if (managerId == null) {
+            return;
+        }
+        employeeRepository.findById(managerId)
+                .orElseThrow(() -> new IllegalArgumentException("Nhân viên trưởng phòng không tồn tại (id=" + managerId + ")"));
+    }
+
+    /** Trưởng phòng phải là nhân viên đang thuộc đúng phòng ban (theo employees.department_id). */
+    private void validateManagerForDepartment(Long managerId, Long departmentId) {
+        if (managerId == null) {
+            return;
+        }
+        Employee m = employeeRepository.findById(managerId)
+                .orElseThrow(() -> new IllegalArgumentException("Nhân viên trưởng phòng không tồn tại (id=" + managerId + ")"));
+        if (m.getDepartmentId() == null || !m.getDepartmentId().equals(departmentId)) {
+            throw new IllegalArgumentException(
+                    "Trưởng phòng phải là nhân viên thuộc phòng ban này (cập nhật phòng cho nhân viên trước khi gán)");
+        }
     }
 
     // ── Delete ──────────────────────────────────────────────────────────────

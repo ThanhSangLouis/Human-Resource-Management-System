@@ -51,6 +51,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/logout").permitAll()
                         .requestMatchers(HttpMethod.GET, "/attendance.html").permitAll()
                         .requestMatchers(HttpMethod.GET, "/leave.html").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/worktime.html").permitAll()
                         .requestMatchers(HttpMethod.GET, "/departments.html").permitAll()
                         .requestMatchers(HttpMethod.GET, "/employees.html").permitAll()
                         .requestMatchers("/api/attendance/**").authenticated()
