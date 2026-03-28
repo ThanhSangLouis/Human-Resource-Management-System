@@ -157,7 +157,7 @@
                 return;
             }
 
-            const token = data.accessToken || "";
+            const token = data.accessToken || data.access_token || "";
             if (!token) {
                 localStorage.removeItem(ACCESS_TOKEN_KEY);
                 setStatus("Login failed: token missing", false);
@@ -165,24 +165,19 @@
                 return;
             }
 
+            const roleNorm = String(data.role || "").trim().toUpperCase();
             localStorage.setItem(ACCESS_TOKEN_KEY, token);
             localStorage.setItem("hrm_user", JSON.stringify({
                 username: data.username,
-                role: data.role,
-                employeeId: data.employeeId
+                role: roleNorm || data.role,
+                employeeId: data.employeeId != null ? data.employeeId : data.employee_id
             }));
-            localStorage.setItem("hrm_refresh_token", data.refreshToken || "");
+            localStorage.setItem("hrm_refresh_token", data.refreshToken || data.refresh_token || "");
 
             setStatus("Đăng nhập thành công! Đang chuyển trang...", true);
 
-            const roleRedirect = {
-                ADMIN:    "/departments.html",
-                HR:       "/departments.html",
-                MANAGER:  "/employees.html",
-                EMPLOYEE: "/worktime.html#attendance"
-            };
-            const redirectTo = roleRedirect[data.role] || "/departments.html";
-            setTimeout(() => { window.location.href = redirectTo; }, 500);
+            const redirectTo = "/overview";
+            setTimeout(() => { window.location.replace(redirectTo); }, 150);
         } catch (err) {
             localStorage.removeItem(ACCESS_TOKEN_KEY);
             setStatus("Request error", false);
