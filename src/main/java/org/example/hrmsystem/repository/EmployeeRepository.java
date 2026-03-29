@@ -19,6 +19,12 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
 
     List<Employee> findByStatus(EmployeeStatus status);
 
+    long countByStatus(EmployeeStatus status);
+
+    /** Số nhân viên theo từng phòng ban (chỉ các nhân viên có department_id). */
+    @Query("SELECT e.departmentId, COUNT(e) FROM Employee e WHERE e.departmentId IS NOT NULL GROUP BY e.departmentId")
+    List<Object[]> countGroupByDepartment();
+
     // ── Unique checks ────────────────────────────────────────────────────────
 
     boolean existsByEmployeeCode(String employeeCode);

@@ -39,6 +39,10 @@ public class EmployeeRequest {
 
     private LocalDate hireDate;
 
+    /** Mật khẩu tài khoản đăng nhập khi tạo mới (tùy chọn). Bỏ trống → mặc định 123456 (server hash BCrypt). */
+    @Size(max = 128)
+    private String initialPassword;
+
     // ── Getters & Setters ───────────────────────────────────────────────────
 
     public String getEmployeeCode() { return employeeCode; }
@@ -73,4 +77,7 @@ public class EmployeeRequest {
 
     public LocalDate getHireDate() { return hireDate; }
     public void setHireDate(LocalDate hireDate) { this.hireDate = hireDate; }
+
+    public String getInitialPassword() { return initialPassword; }
+    public void setInitialPassword(String initialPassword) { this.initialPassword = initialPassword; }
 }

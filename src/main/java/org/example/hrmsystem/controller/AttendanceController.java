@@ -5,7 +5,12 @@ import org.example.hrmsystem.model.Role;
 import org.example.hrmsystem.security.AppUserDetails;
 import org.example.hrmsystem.service.AttendanceHistoryAccess;
 import org.example.hrmsystem.service.AttendanceService;
+import org.example.hrmsystem.service.ExcelExportService;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.example.hrmsystem.model.AttendanceStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.io.IOException;
 import java.time.YearMonth;
 import java.time.format.DateTimeParseException;
 import java.util.Map;
@@ -23,9 +29,49 @@ import java.util.Map;
 public class AttendanceController {
 
     private final AttendanceService attendanceService;
+    private final ExcelExportService excelExportService;
 
-    public AttendanceController(AttendanceService attendanceService) {
+    public AttendanceController(AttendanceService attendanceService, ExcelExportService excelExportService) {
         this.attendanceService = attendanceService;
+        this.excelExportService = excelExportService;
+    }
+
+    /**
+     * US18 — Xuất Excel chấm công theo tháng (HR/Admin).
+     */
+    @GetMapping("/export")
+    @PreAuthorize("hasAnyRole('ADMIN','HR')")
+    public ResponseEntity<byte[]> exportExcel(
+            @RequestParam String month,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) String status
+    ) {
+        if (month == null || month.isBlank()) {
+            return ResponseEntity.badRequest().build();
+        }
+        try {
+            YearMonth.parse(month.trim());
+        } catch (DateTimeParseException ex) {
+            return ResponseEntity.badRequest().build();
+        }
+        if (status != null && !status.isBlank()) {
+            try {
+                AttendanceStatus.valueOf(status.trim().toUpperCase());
+            } catch (IllegalArgumentException ex) {
+                return ResponseEntity.badRequest().build();
+            }
+        }
+        try {
+            byte[] data = excelExportService.exportAttendanceMonth(month, departmentId, status);
+            String filename = "chamcong_" + month.replace("-", "") + ".xlsx";
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentDisposition(ContentDisposition.attachment().filename(filename).build());
+            headers.setContentType(MediaType.parseMediaType(
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+            return ResponseEntity.ok().headers(headers).body(data);
+        } catch (IOException ex) {
+            return ResponseEntity.internalServerError().build();
+        }
     }
 
     @PostMapping("/check-in")
