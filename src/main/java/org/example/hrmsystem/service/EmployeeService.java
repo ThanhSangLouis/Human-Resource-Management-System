@@ -7,21 +7,32 @@ import org.example.hrmsystem.exception.ResourceNotFoundException;
 import org.example.hrmsystem.model.*;
 import org.example.hrmsystem.repository.DepartmentRepository;
 import org.example.hrmsystem.repository.EmployeeRepository;
+import org.example.hrmsystem.repository.UserAccountRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class EmployeeService {
 
+    /** Mật khẩu ban đầu khi tạo user (nếu không gửi initialPassword); lưu DB đã hash BCrypt. */
+    private static final String DEFAULT_INITIAL_PASSWORD = "123456";
+
     private final EmployeeRepository employeeRepository;
     private final DepartmentRepository departmentRepository;
+    private final UserAccountRepository userAccountRepository;
+    private final PasswordEncoder passwordEncoder;
 
     public EmployeeService(EmployeeRepository employeeRepository,
-                           DepartmentRepository departmentRepository) {
+                           DepartmentRepository departmentRepository,
+                           UserAccountRepository userAccountRepository,
+                           PasswordEncoder passwordEncoder) {
         this.employeeRepository = employeeRepository;
         this.departmentRepository = departmentRepository;
+        this.userAccountRepository = userAccountRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     // ── Read All (Search + Filter + Pagination) ──────────────────────────────
@@ -56,7 +67,9 @@ public class EmployeeService {
 
         Employee emp = new Employee();
         applyFields(emp, req);
-        return toResponse(employeeRepository.save(emp));
+        Employee saved = employeeRepository.save(emp);
+        createUserForNewEmployee(saved, req);
+        return toResponse(saved);
     }
 
     // ── Update ───────────────────────────────────────────────────────────────
@@ -106,6 +119,43 @@ public class EmployeeService {
         if (!departmentRepository.existsById(deptId)) {
             throw new IllegalArgumentException("Phòng ban không tồn tại: id=" + deptId);
         }
+    }
+
+    /**
+     * Tạo tài khoản đăng nhập (role EMPLOYEE), gắn với nhân viên vừa tạo.
+     * Username: email (chuẩn hóa chữ thường) nếu có, không thì mã nhân viên.
+     * Mật khẩu: {@code initialPassword} nếu gửi lên, không thì mặc định 123456 (lưu đã hash BCrypt).
+     */
+    private void createUserForNewEmployee(Employee emp, EmployeeRequest req) {
+        if (userAccountRepository.findByEmployeeId(emp.getId()).isPresent()) {
+            return;
+        }
+        String username = resolveLoginUsername(emp);
+        if (username.length() > 100) {
+            throw new IllegalArgumentException(
+                    "Email hoặc mã nhân viên dùng làm tên đăng nhập vượt quá 100 ký tự.");
+        }
+        if (userAccountRepository.existsByUsername(username)) {
+            throw new DuplicateResourceException("Tên đăng nhập đã tồn tại: " + username);
+        }
+        String rawPassword = (req.getInitialPassword() != null && !req.getInitialPassword().isBlank())
+                ? req.getInitialPassword().trim()
+                : DEFAULT_INITIAL_PASSWORD;
+
+        UserAccount user = new UserAccount();
+        user.setUsername(username);
+        user.setPassword(passwordEncoder.encode(rawPassword));
+        user.setRole(Role.EMPLOYEE);
+        user.setEmployeeId(emp.getId());
+        user.setActive(true);
+        userAccountRepository.save(user);
+    }
+
+    private static String resolveLoginUsername(Employee emp) {
+        if (emp.getEmail() != null && !emp.getEmail().isBlank()) {
+            return emp.getEmail().trim().toLowerCase();
+        }
+        return emp.getEmployeeCode().trim();
     }
 
     private void applyFields(Employee emp, EmployeeRequest req) {

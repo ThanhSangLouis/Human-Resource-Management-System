@@ -6,7 +6,7 @@
   <title>Quản lý Phòng ban – HRM System</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <script src="/frags.js"></script>
+  <script src="/frags.js?v=3"></script>
   <style>
     /* ──────────── RESET & BASE ──────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -23,11 +23,13 @@
     .topbar {
       background: #fff;
       border-bottom: 1px solid #e5e9f2;
-      padding: 0 32px;
-      height: 60px;
+      padding: 10px 32px;
+      min-height: 60px;
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
+      gap: 10px 20px;
       position: sticky;
       top: 0;
       z-index: 100;
@@ -42,7 +44,7 @@
       gap: 8px;
     }
     .topbar-logo span.dot { color: #f5a623; }
-    .topbar-nav { display: flex; gap: 28px; }
+    .topbar-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; max-width: 100%; }
     .topbar-nav a {
       text-decoration: none;
       color: #5a6a85;
@@ -60,6 +62,8 @@
       gap: 12px;
       font-size: 14px;
       color: #5a6a85;
+      flex-shrink: 0;
+      margin-left: auto;
     }
     .avatar-circle {
       width: 36px; height: 36px;

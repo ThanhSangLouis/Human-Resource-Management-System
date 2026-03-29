@@ -3,7 +3,13 @@ package org.example.hrmsystem.service;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.example.hrmsystem.dto.AttendanceHistoryRow;
 import org.example.hrmsystem.dto.EmployeeResponse;
+import org.example.hrmsystem.model.AttendanceStatus;
+import org.example.hrmsystem.model.Employee;
+import org.example.hrmsystem.model.SalaryHistory;
+import org.example.hrmsystem.repository.EmployeeRepository;
+import org.example.hrmsystem.repository.SalaryHistoryRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -12,18 +18,33 @@ import org.springframework.stereotype.Service;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class ExcelExportService {
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    private static final DateTimeFormatter DT_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
     private final EmployeeService employeeService;
+    private final AttendanceService attendanceService;
+    private final SalaryHistoryRepository salaryHistoryRepository;
+    private final EmployeeRepository employeeRepository;
 
-    public ExcelExportService(EmployeeService employeeService) {
+    public ExcelExportService(
+            EmployeeService employeeService,
+            AttendanceService attendanceService,
+            SalaryHistoryRepository salaryHistoryRepository,
+            EmployeeRepository employeeRepository
+    ) {
         this.employeeService = employeeService;
+        this.attendanceService = attendanceService;
+        this.salaryHistoryRepository = salaryHistoryRepository;
+        this.employeeRepository = employeeRepository;
     }
 
     /**
@@ -149,6 +170,169 @@ public class ExcelExportService {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             wb.write(out);
             return out.toByteArray();
+        }
+    }
+
+    /** US18 — Chấm công theo tháng (filter tùy chọn). */
+    public byte[] exportAttendanceMonth(String month, Long departmentId, String status) throws java.io.IOException {
+        AttendanceStatus st = null;
+        if (status != null && !status.isBlank()) {
+            st = AttendanceStatus.valueOf(status.trim().toUpperCase());
+        }
+        List<AttendanceHistoryRow> rows = attendanceService.listForExport(month, departmentId, st);
+        YearMonth ym = YearMonth.parse(month.trim());
+
+        try (XSSFWorkbook wb = new XSSFWorkbook()) {
+            Sheet sheet = wb.createSheet("Chấm công");
+            sheet.setColumnWidth(0, 6 * 256);
+            sheet.setColumnWidth(1, 10 * 256);
+            sheet.setColumnWidth(2, 24 * 256);
+            sheet.setColumnWidth(3, 12 * 256);
+            sheet.setColumnWidth(4, 18 * 256);
+            sheet.setColumnWidth(5, 18 * 256);
+            sheet.setColumnWidth(6, 10 * 256);
+            sheet.setColumnWidth(7, 10 * 256);
+            sheet.setColumnWidth(8, 14 * 256);
+            sheet.setColumnWidth(9, 36 * 256);
+
+            CellStyle titleStyle = createTitleStyle(wb);
+            Row titleRow = sheet.createRow(0);
+            Cell tc = titleRow.createCell(0);
+            tc.setCellValue("BÁO CÁO CHẤM CÔNG – " + ym);
+            tc.setCellStyle(titleStyle);
+            sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 9));
+
+            CellStyle subStyle = createSubTitleStyle(wb);
+            Row sub = sheet.createRow(1);
+            String f = "Tháng: " + ym;
+            if (departmentId != null) f += " | Phòng ban ID: " + departmentId;
+            if (st != null) f += " | Trạng thái: " + st;
+            Cell sc = sub.createCell(0);
+            sc.setCellValue(f);
+            sc.setCellStyle(subStyle);
+            sheet.addMergedRegion(new CellRangeAddress(1, 1, 0, 9));
+
+            CellStyle headerStyle = createHeaderStyle(wb);
+            Row hr = sheet.createRow(3);
+            String[] headers = {"STT", "Mã NV", "Họ tên", "Ngày", "Vào", "Ra", "Giờ LV", "Tăng ca", "Trạng thái", "Ghi chú"};
+            for (int i = 0; i < headers.length; i++) {
+                Cell c = hr.createCell(i);
+                c.setCellValue(headers[i]);
+                c.setCellStyle(headerStyle);
+            }
+
+            CellStyle dataStyle = createDataStyle(wb, false);
+            CellStyle dataAlt = createDataStyle(wb, true);
+            CellStyle numStyle = createNumberStyle(wb);
+            int r = 4;
+            for (int i = 0; i < rows.size(); i++) {
+                AttendanceHistoryRow row = rows.get(i);
+                Row excelRow = sheet.createRow(r++);
+                CellStyle base = (i % 2 == 0) ? dataStyle : dataAlt;
+                createCell(excelRow, 0, String.valueOf(i + 1), base);
+                createCell(excelRow, 1, String.valueOf(row.getEmployeeId()), base);
+                createCell(excelRow, 2, nullSafe(row.getEmployeeName()), base);
+                createCell(excelRow, 3, row.getAttendanceDate() != null ? row.getAttendanceDate().format(DATE_FMT) : "", base);
+                createCell(excelRow, 4, row.getCheckIn() != null ? row.getCheckIn().format(DT_FMT) : "", base);
+                createCell(excelRow, 5, row.getCheckOut() != null ? row.getCheckOut().format(DT_FMT) : "", base);
+                Cell wh = excelRow.createCell(6);
+                if (row.getWorkHours() != null) {
+                    wh.setCellValue(row.getWorkHours().doubleValue());
+                    wh.setCellStyle(numStyle);
+                } else {
+                    wh.setCellValue("");
+                    wh.setCellStyle(base);
+                }
+                Cell ot = excelRow.createCell(7);
+                if (row.getOvertimeHours() != null) {
+                    ot.setCellValue(row.getOvertimeHours().doubleValue());
+                    ot.setCellStyle(numStyle);
+                } else {
+                    ot.setCellValue("");
+                    ot.setCellStyle(base);
+                }
+                createCell(excelRow, 8, row.getStatus() != null ? row.getStatus().name() : "", base);
+                createCell(excelRow, 9, nullSafe(row.getNote()), base);
+            }
+
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            wb.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    /** US18 — Bảng lương theo tháng. */
+    public byte[] exportPayrollMonth(String month) throws java.io.IOException {
+        YearMonth ym = YearMonth.parse(month.trim());
+        LocalDate monthStart = ym.atDay(1);
+        List<SalaryHistory> list = salaryHistoryRepository.findBySalaryMonthOrderByEmployeeIdAsc(monthStart);
+        Map<Long, Employee> em = employeeRepository.findAllById(
+                list.stream().map(SalaryHistory::getEmployeeId).collect(Collectors.toSet())
+        ).stream().collect(Collectors.toMap(Employee::getId, e -> e));
+
+        try (XSSFWorkbook wb = new XSSFWorkbook()) {
+            Sheet sheet = wb.createSheet("Bảng lương");
+            for (int c = 0; c < 12; c++) {
+                sheet.setColumnWidth(c, 14 * 256);
+            }
+            sheet.setColumnWidth(2, 22 * 256);
+
+            CellStyle titleStyle = createTitleStyle(wb);
+            Row titleRow = sheet.createRow(0);
+            Cell t = titleRow.createCell(0);
+            t.setCellValue("BẢNG LƯƠNG – " + ym);
+            t.setCellStyle(titleStyle);
+            sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 11));
+
+            CellStyle headerStyle = createHeaderStyle(wb);
+            Row hr = sheet.createRow(2);
+            String[] headers = {
+                    "STT", "Mã NV", "Họ tên", "Lương CB", "Thưởng", "Thuế", "BHXH", "Khác", "Thực nhận",
+                    "Tháng", "TT thanh toán", "Ghi chú"
+            };
+            for (int i = 0; i < headers.length; i++) {
+                Cell c = hr.createCell(i);
+                c.setCellValue(headers[i]);
+                c.setCellStyle(headerStyle);
+            }
+
+            CellStyle dataStyle = createDataStyle(wb, false);
+            CellStyle dataAlt = createDataStyle(wb, true);
+            CellStyle numStyle = createNumberStyle(wb);
+            int r = 3;
+            for (int i = 0; i < list.size(); i++) {
+                SalaryHistory sh = list.get(i);
+                Employee e = em.get(sh.getEmployeeId());
+                Row excelRow = sheet.createRow(r++);
+                CellStyle base = (i % 2 == 0) ? dataStyle : dataAlt;
+                createCell(excelRow, 0, String.valueOf(i + 1), base);
+                createCell(excelRow, 1, e != null ? nullSafe(e.getEmployeeCode()) : "", base);
+                createCell(excelRow, 2, e != null ? nullSafe(e.getFullName()) : "—", base);
+                putMoney(excelRow, 3, sh.getSalaryBase(), numStyle, base);
+                putMoney(excelRow, 4, sh.getBonus(), numStyle, base);
+                putMoney(excelRow, 5, sh.getTax(), numStyle, base);
+                putMoney(excelRow, 6, sh.getInsurance(), numStyle, base);
+                putMoney(excelRow, 7, sh.getOtherDeduction(), numStyle, base);
+                putMoney(excelRow, 8, sh.getFinalSalary(), numStyle, base);
+                createCell(excelRow, 9, sh.getSalaryMonth() != null ? sh.getSalaryMonth().format(DATE_FMT) : "", base);
+                createCell(excelRow, 10, sh.getPaymentStatus() != null ? sh.getPaymentStatus().name() : "", base);
+                createCell(excelRow, 11, nullSafe(sh.getNote()), base);
+            }
+
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            wb.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    private void putMoney(Row row, int col, java.math.BigDecimal v, CellStyle numStyle, CellStyle base) {
+        Cell c = row.createCell(col);
+        if (v != null) {
+            c.setCellValue(v.doubleValue());
+            c.setCellStyle(numStyle);
+        } else {
+            c.setCellValue("");
+            c.setCellStyle(base);
         }
     }
 

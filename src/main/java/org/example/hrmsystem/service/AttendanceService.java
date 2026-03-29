@@ -302,6 +302,57 @@ public class AttendanceService {
     }
 
     /**
+     * Toàn bộ dòng chấm công trong tháng (dùng cho export Excel HR), có lọc phòng ban/trạng thái.
+     */
+    public List<AttendanceHistoryRow> listForExport(
+            String monthParam,
+            Long departmentId,
+            AttendanceStatus statusFilter
+    ) {
+        YearMonth ym = YearMonth.parse(monthParam.trim());
+        LocalDate from = ym.atDay(1);
+        LocalDate to = ym.atEndOfMonth();
+
+        Specification<Attendance> spec = (root, query, cb) -> {
+            List<Predicate> parts = new ArrayList<>();
+            parts.add(cb.between(root.get("attendanceDate"), from, to));
+            if (departmentId != null) {
+                Subquery<Long> sq = query.subquery(Long.class);
+                Root<Employee> er = sq.from(Employee.class);
+                sq.select(er.get("id"));
+                sq.where(cb.equal(er.get("departmentId"), departmentId));
+                parts.add(root.get("employeeId").in(sq));
+            }
+            if (statusFilter != null) {
+                parts.add(cb.equal(root.get("status"), statusFilter));
+            }
+            return cb.and(parts.toArray(Predicate[]::new));
+        };
+
+        List<Attendance> all = attendanceRepository.findAll(spec,
+                Sort.by(Sort.Direction.DESC, "attendanceDate").and(Sort.by(Sort.Direction.DESC, "id")));
+        Set<Long> ids = all.stream().map(Attendance::getEmployeeId).collect(Collectors.toSet());
+        Map<Long, String> names = new HashMap<>();
+        if (!ids.isEmpty()) {
+            employeeRepository.findAllById(ids).forEach(e -> names.put(e.getId(), e.getFullName()));
+        }
+        return all.stream()
+                .map(a -> new AttendanceHistoryRow(
+                        a.getId(),
+                        a.getEmployeeId(),
+                        names.getOrDefault(a.getEmployeeId(), "—"),
+                        a.getAttendanceDate(),
+                        a.getCheckIn(),
+                        a.getCheckOut(),
+                        a.getWorkHours(),
+                        a.getOvertimeHours(),
+                        a.getStatus(),
+                        a.getNote()
+                ))
+                .toList();
+    }
+
+    /**
      * Các giá trị {@code attendance.employee_id} gắn với tài khoản ADMIN:
      * {@code users.employee_id} (nếu có) và {@code users.id} (fallback khi chấm công không có profile nhân viên).
      */

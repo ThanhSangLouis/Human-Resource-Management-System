@@ -37,17 +37,20 @@ public class LeaveRequestService {
     private final EmployeeRepository employeeRepository;
     private final ManagerEmployeeScopeService managerEmployeeScopeService;
     private final AttendanceLeaveSyncService attendanceLeaveSyncService;
+    private final NotificationService notificationService;
 
     public LeaveRequestService(
             LeaveRequestRepository leaveRequestRepository,
             EmployeeRepository employeeRepository,
             ManagerEmployeeScopeService managerEmployeeScopeService,
-            AttendanceLeaveSyncService attendanceLeaveSyncService
+            AttendanceLeaveSyncService attendanceLeaveSyncService,
+            NotificationService notificationService
     ) {
         this.leaveRequestRepository = leaveRequestRepository;
         this.employeeRepository = employeeRepository;
         this.managerEmployeeScopeService = managerEmployeeScopeService;
         this.attendanceLeaveSyncService = attendanceLeaveSyncService;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -178,6 +181,16 @@ public class LeaveRequestService {
         attendanceLeaveSyncService.syncOnLeaveForApprovedRange(
                 req.getEmployeeId(), req.getStartDate(), req.getEndDate());
 
+        employeeRepository.findById(req.getEmployeeId()).ifPresent(emp ->
+                notificationService.notifyLeaveDecision(
+                        emp.getId(),
+                        emp.getEmail(),
+                        emp.getFullName(),
+                        true,
+                        req.getStartDate(),
+                        req.getEndDate()
+                ));
+
         log.info("Leave request {} APPROVED by user {} — attendance ON_LEAVE synced", requestId, reviewer.getUserId());
         return toResponse(req, resolveEmployeeName(req.getEmployeeId()), "Leave approved");
     }
@@ -196,6 +209,18 @@ public class LeaveRequestService {
         req.setApprovedBy(reviewer.getUserId());
         req.setApprovedAt(now);
         leaveRequestRepository.save(req);
+
+        employeeRepository.findById(req.getEmployeeId()).ifPresent(emp -> {
+            log.info("[HRM-MAIL] leave reject notify employeeId={} email={}", emp.getId(), emp.getEmail());
+            notificationService.notifyLeaveDecision(
+                    emp.getId(),
+                    emp.getEmail(),
+                    emp.getFullName(),
+                    false,
+                    req.getStartDate(),
+                    req.getEndDate()
+            );
+        });
 
         log.info("Leave request {} REJECTED by user {}", requestId, reviewer.getUserId());
         return toResponse(req, resolveEmployeeName(req.getEmployeeId()), "Leave rejected");

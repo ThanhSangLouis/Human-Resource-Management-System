@@ -58,6 +58,8 @@
         path === '/dashboard' || path === '/dashboard.html') return 'overview';
     if (path.includes('employees'))   return 'employees';
     if (path.includes('departments')) return 'departments';
+    if (path.includes('payroll'))     return 'payroll';
+    if (path.includes('performance')) return 'performance';
     if (path.includes('worktime') || path.includes('attendance')) {
       return hash === '#leave' ? 'leave' : 'attendance';
     }
@@ -76,17 +78,38 @@
     if (!el) return;
     try {
       el.innerHTML = await fetchFragment('/fragments/topbar.html');
-    } catch (_) { return; }
+    } catch (err) {
+      console.error('[HRM] Không tải được /fragments/topbar.html:', err);
+      el.innerHTML = '<div style="padding:12px 20px;color:#b91c1c;font-size:13px;">Lỗi tải menu trên. Hãy chạy lại server và Ctrl+F5. (' + (err && err.message ? err.message : err) + ')</div>';
+      return;
+    }
 
-    /* Highlight active topbar link */
     const path = window.location.pathname;
-    el.querySelectorAll('.topbar-nav a').forEach(a => {
-      const h = a.getAttribute('href');
-      if (h === '/overview' && (path === '/overview' || path === '/overview.html')) {
-        a.classList.add('active');
-      }
-      if (h === '/overview' && (path === '/dashboard' || path === '/dashboard.html')) {
-        a.classList.add('active');
+    const hash = window.location.hash;
+    const currentNav = resolveCurrentNav();
+
+    function roleAllowedTop(allowedAttr, userRole) {
+      if (!allowedAttr || !String(allowedAttr).trim()) return true;
+      if (!userRole) return false;
+      const list = String(allowedAttr).split(',').map(function (r) { return r.trim().toUpperCase(); });
+      return list.indexOf(userRole) >= 0;
+    }
+
+    el.querySelectorAll('.topbar-nav a').forEach(function (a) {
+      if (a.dataset.nav) {
+        if (a.dataset.nav === currentNav) a.classList.add('active');
+        const allowed = a.dataset.roles;
+        if (allowed && !roleAllowedTop(allowed, role)) {
+          a.style.display = 'none';
+        }
+      } else {
+        var h = a.getAttribute('href');
+        if (h === '/overview' && (path === '/overview' || path === '/overview.html')) {
+          a.classList.add('active');
+        }
+        if (h === '/overview' && (path === '/dashboard' || path === '/dashboard.html')) {
+          a.classList.add('active');
+        }
       }
     });
 
@@ -103,17 +126,25 @@
     if (!el) return;
     try {
       el.innerHTML = await fetchFragment('/fragments/navbar.html');
-    } catch (_) { return; }
+    } catch (err) {
+      console.error('[HRM] Không tải được /fragments/navbar.html:', err);
+      el.innerHTML = '<div style="padding:12px 16px;color:#b91c1c;font-size:12px;">Lỗi tải menu bên.</div>';
+      return;
+    }
 
     const currentNav = resolveCurrentNav();
 
-    el.querySelectorAll('[data-nav]').forEach(link => {
-      /* active highlight */
-      if (link.dataset.nav === currentNav) link.classList.add('active');
+    function roleAllowed(allowedAttr, userRole) {
+      if (!allowedAttr || !String(allowedAttr).trim()) return true;
+      if (!userRole) return false;
+      const list = String(allowedAttr).split(',').map(function (r) { return r.trim().toUpperCase(); });
+      return list.indexOf(userRole) >= 0;
+    }
 
-      /* role-based visibility */
+    el.querySelectorAll('[data-nav]').forEach(function (link) {
+      if (link.dataset.nav === currentNav) link.classList.add('active');
       const allowed = link.dataset.roles;
-      if (allowed && role && !allowed.split(',').includes(role)) {
+      if (allowed && !roleAllowed(allowed, role)) {
         link.style.display = 'none';
       }
     });

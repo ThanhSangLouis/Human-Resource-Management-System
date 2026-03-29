@@ -63,6 +63,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/logout").permitAll()
                         .requestMatchers(HttpMethod.GET, "/*.html").permitAll()
                         .requestMatchers(HttpMethod.GET, "/overview").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/performance").permitAll()
                         .requestMatchers(HttpMethod.GET, "/dashboard").permitAll()
                         .requestMatchers(HttpMethod.GET, "/frags.js").permitAll()
                         .requestMatchers(HttpMethod.GET, "/fragments/**").permitAll()
@@ -72,6 +73,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/departments/**").authenticated()
                         .requestMatchers("/api/employees/**").authenticated()
                         .requestMatchers("/api/dashboard/**").authenticated()
+                        .requestMatchers("/api/payroll/**").authenticated()
+                        .requestMatchers("/api/performance-reviews/**").authenticated()
+                        .requestMatchers("/api/notifications/**").authenticated()
                         .anyRequest().authenticated())
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

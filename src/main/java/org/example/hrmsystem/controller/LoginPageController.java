@@ -19,6 +19,11 @@ public class LoginPageController {
         return "redirect:/overview.html";
     }
 
+    @GetMapping("/performance")
+    public String performancePage() {
+        return "redirect:/performance.html";
+    }
+
     /** Tương thích link cũ */
     @GetMapping("/dashboard")
     public String legacyDashboard() {

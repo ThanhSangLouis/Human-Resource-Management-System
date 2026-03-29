@@ -6,19 +6,19 @@
   <title>Quản lý Nhân viên – HRM System</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <script src="/frags.js"></script>
+  <script src="/frags.js?v=3"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Inter', sans-serif; background: #f4f6fb; color: #1a2035; min-height: 100vh; display: flex; flex-direction: column; }
 
     /* ── TOPBAR ── */
-    .topbar { background:#fff; border-bottom:1px solid #e5e9f2; padding:0 32px; height:60px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+    .topbar { background:#fff; border-bottom:1px solid #e5e9f2; padding:10px 32px; min-height:60px; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px 20px; position:sticky; top:0; z-index:100; box-shadow:0 1px 4px rgba(0,0,0,.06); }
     .topbar-logo { font-size:18px; font-weight:700; color:#2c3e8c; display:flex; align-items:center; gap:8px; }
     .topbar-logo span.dot { color:#f5a623; }
-    .topbar-nav { display:flex; gap:28px; }
+    .topbar-nav { display:flex; flex-wrap:wrap; align-items:center; gap:10px 18px; max-width:100%; }
     .topbar-nav a { text-decoration:none; color:#5a6a85; font-size:14px; font-weight:500; padding:4px 0; border-bottom:2px solid transparent; transition:color .2s,border-color .2s; }
     .topbar-nav a.active, .topbar-nav a:hover { color:#2c3e8c; border-bottom-color:#2c3e8c; }
-    .topbar-user { display:flex; align-items:center; gap:12px; font-size:14px; color:#5a6a85; }
+    .topbar-user { display:flex; align-items:center; gap:12px; font-size:14px; color:#5a6a85; flex-shrink:0; margin-left:auto; }
     .avatar-circle { width:36px; height:36px; border-radius:50%; background:#2c3e8c; color:#fff; font-weight:700; font-size:14px; display:flex; align-items:center; justify-content:center; }
 
     /* ── LAYOUT ── */
@@ -298,6 +298,11 @@
           <input type="text" id="f-phone" placeholder="0901234567" maxlength="50" />
         </div>
       </div>
+      <div class="form-group" id="f-password-wrap" style="display:none;">
+        <label>Mật khẩu đăng nhập <span style="font-weight:500;color:#8a94a6;">(tùy chọn)</span></label>
+        <input type="password" id="f-password" autocomplete="new-password" placeholder="Để trống = mặc định 123456" maxlength="128" />
+        <div class="error-msg" id="e-password">Không thể tạo tài khoản đăng nhập</div>
+      </div>
       <div class="form-row">
         <div class="form-group">
           <label>Giới tính</label>
@@ -528,6 +533,8 @@ function sortBy(field) {
 function openCreateModal() {
   document.getElementById('modal-title').textContent = 'Thêm nhân viên';
   document.getElementById('emp-id').value = '';
+  document.getElementById('f-password-wrap').style.display = 'block';
+  document.getElementById('f-password').value = '';
   ['f-code','f-name','f-email','f-phone','f-position','f-dob','f-hire'].forEach(id => document.getElementById(id).value='');
   document.getElementById('f-gender').value = '';
   document.getElementById('f-dept').value = '';
@@ -568,6 +575,7 @@ async function openEditModal(id) {
     document.getElementById('f-hire').value = e.hireDate||'';
     document.getElementById('f-salary').value = e.salaryBase||'';
     document.getElementById('f-status').value = e.status||'ACTIVE';
+    document.getElementById('f-password-wrap').style.display = 'none';
     clearErrors();
     document.getElementById('form-overlay').classList.add('show');
   } catch { showToast('Không thể tải thông tin nhân viên','error'); }
@@ -589,7 +597,8 @@ async function submitForm() {
   if (!fullName)     { document.getElementById('e-name').classList.add('show'); valid=false; }
   if (!valid) return;
 
-  const body = JSON.stringify({
+  const pw = document.getElementById('f-password').value;
+  const payload = {
     employeeCode,
     fullName,
     email: email||null,
@@ -601,7 +610,9 @@ async function submitForm() {
     hireDate: document.getElementById('f-hire').value||null,
     salaryBase: document.getElementById('f-salary').value ? parseFloat(document.getElementById('f-salary').value) : null,
     status: document.getElementById('f-status').value,
-  });
+  };
+  if (!id && pw) payload.initialPassword = pw;
+  const body = JSON.stringify(payload);
 
   const isEdit = !!id;
   try {
@@ -612,6 +623,10 @@ async function submitForm() {
       const msg = err.message || '';
       if (msg.toLowerCase().includes('mã')) { document.getElementById('e-code').textContent=msg; document.getElementById('e-code').classList.add('show'); }
       else if (msg.toLowerCase().includes('email')) { document.getElementById('e-email').textContent=msg; document.getElementById('e-email').classList.add('show'); }
+      else if (msg.toLowerCase().includes('đăng nhập') || msg.toLowerCase().includes('tên đăng nhập')) {
+        document.getElementById('e-password').textContent = msg;
+        document.getElementById('e-password').classList.add('show');
+      }
       return;
     }
     if (!res.ok) throw new Error();
