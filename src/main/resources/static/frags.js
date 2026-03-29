@@ -63,6 +63,8 @@
     if (path.includes('worktime') || path.includes('attendance')) {
       return hash === '#leave' ? 'leave' : 'attendance';
     }
+    if (path.includes('profile')) return 'profile';
+    if (path.includes('change-password')) return 'change-password';
     return '';
   }
 

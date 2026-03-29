@@ -57,6 +57,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/").permitAll()
                         .requestMatchers(HttpMethod.GET, "/.well-known/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/login", "/login.html", "/favicon.ico").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/profile", "/profile.html").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/change-password", "/change-password.html").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/public/status").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/refresh").permitAll()

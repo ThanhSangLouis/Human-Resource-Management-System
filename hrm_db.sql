@@ -13,7 +13,7 @@
 --  [leave_requests]    NEW TABLE - Quản lý nghỉ phép
 --  [attendance]        + overtime_hours, + note, + ON_LEAVE status, + updated_at
 --  [performance_reviews] + status workflow, + review_year/quarter thay review_period,
---                        + UNIQUE per employee/period, + CHECK score constraint, + updated_at
+--                        + UNIQUE per employee/period, + CHECattendanceK score constraint, + updated_at
 --  [salary_history]    + tax, + insurance, + other_deduction, + payment_status,
 --                        + note, + updated_at, + UNIQUE(employee_id, salary_month) CRITICAL FIX
 --  [notifications]     + employee_id FK, + notification_type, + is_read
