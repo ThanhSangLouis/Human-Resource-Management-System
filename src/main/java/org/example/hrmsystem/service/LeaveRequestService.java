@@ -8,14 +8,18 @@ import org.example.hrmsystem.model.LeaveRequest;
 import org.example.hrmsystem.model.LeaveStatus;
 import org.example.hrmsystem.model.LeaveType;
 import org.example.hrmsystem.model.Role;
+import org.example.hrmsystem.model.UserAccount;
+import org.example.hrmsystem.repository.DepartmentRepository;
 import org.example.hrmsystem.repository.EmployeeRepository;
 import org.example.hrmsystem.repository.LeaveRequestRepository;
+import org.example.hrmsystem.repository.UserAccountRepository;
 import org.example.hrmsystem.security.AppUserDetails;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +30,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 @Service
@@ -38,19 +43,25 @@ public class LeaveRequestService {
     private final ManagerEmployeeScopeService managerEmployeeScopeService;
     private final AttendanceLeaveSyncService attendanceLeaveSyncService;
     private final NotificationService notificationService;
+    private final UserAccountRepository userAccountRepository;
+    private final DepartmentRepository departmentRepository;
 
     public LeaveRequestService(
             LeaveRequestRepository leaveRequestRepository,
             EmployeeRepository employeeRepository,
             ManagerEmployeeScopeService managerEmployeeScopeService,
             AttendanceLeaveSyncService attendanceLeaveSyncService,
-            NotificationService notificationService
+            NotificationService notificationService,
+            UserAccountRepository userAccountRepository,
+            DepartmentRepository departmentRepository
     ) {
         this.leaveRequestRepository = leaveRequestRepository;
         this.employeeRepository = employeeRepository;
         this.managerEmployeeScopeService = managerEmployeeScopeService;
         this.attendanceLeaveSyncService = attendanceLeaveSyncService;
         this.notificationService = notificationService;
+        this.userAccountRepository = userAccountRepository;
+        this.departmentRepository = departmentRepository;
     }
 
     @Transactional
@@ -108,8 +119,6 @@ public class LeaveRequestService {
         Page<LeaveRequest> pageResult = leaveRequestRepository
             .findByEmployeeIdOrderByCreatedAtDesc(employeeId, pageable);
 
-        String employeeName = resolveEmployeeName(employeeId);
-
         List<LeaveRequestResponse> content = pageResult.getContent().stream()
             .map(lr -> toResponse(lr, resolveEmployeeName(lr.getEmployeeId()), null))
             .toList();
@@ -125,10 +134,15 @@ public class LeaveRequestService {
     }
 
     /**
-     * HR / ADMIN: toàn bộ đơn chờ duyệt. MANAGER: chỉ nhân viên thuộc phòng quản lý.
+     * Hàng chờ theo phân cấp duyệt:
+     * <ul>
+     *   <li>MANAGER — đơn của EMPLOYEE (hoặc chưa có user) trong phòng quản lý</li>
+     *   <li>HR — đơn của MANAGER hoặc ADMIN</li>
+     *   <li>ADMIN — đơn của MANAGER hoặc HR</li>
+     * </ul>
      */
     public Map<String, Object> listPending(AppUserDetails reviewer, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         Role role = Role.valueOf(reviewer.getRole());
         if (role == Role.EMPLOYEE) {
             throw new AccessDeniedException("Employees cannot view the approval queue");
@@ -137,16 +151,21 @@ public class LeaveRequestService {
         Page<LeaveRequest> pageResult;
         if (role == Role.MANAGER) {
             Long mgrKey = resolveActorEmployeeKey(reviewer);
-            Set<Long> visible = managerEmployeeScopeService.visibleEmployeeIdsForManager(mgrKey);
-            if (visible.isEmpty()) {
+            Set<Long> queueIds = managerEmployeeScopeService.managedEmployeeApplicantIds(mgrKey);
+            if (queueIds.isEmpty()) {
                 pageResult = Page.empty(pageable);
             } else {
                 pageResult = leaveRequestRepository.findByStatusAndEmployeeIdInOrderByCreatedAtDesc(
-                        LeaveStatus.PENDING, visible, pageable);
+                        LeaveStatus.PENDING, queueIds, pageable);
             }
+        } else if (role == Role.HR) {
+            pageResult = leaveRequestRepository.findByStatusAndApplicantAccountRolesIn(
+                    LeaveStatus.PENDING, List.of(Role.MANAGER, Role.ADMIN), pageable);
+        } else if (role == Role.ADMIN) {
+            pageResult = leaveRequestRepository.findByStatusAndApplicantAccountRolesIn(
+                    LeaveStatus.PENDING, List.of(Role.MANAGER, Role.HR), pageable);
         } else {
-            pageResult = leaveRequestRepository.findByStatusOrderByCreatedAtDesc(
-                    LeaveStatus.PENDING, pageable);
+            throw new IllegalStateException("Unexpected role for approval queue: " + role);
         }
 
         List<LeaveRequestResponse> content = pageResult.getContent().stream()
@@ -227,21 +246,80 @@ public class LeaveRequestService {
     }
 
     private void assertCanReview(LeaveRequest req, AppUserDetails reviewer) {
-        Role role = Role.valueOf(reviewer.getRole());
-        if (role == Role.EMPLOYEE) {
+        Role reviewerRole = Role.valueOf(reviewer.getRole());
+        if (reviewerRole == Role.EMPLOYEE) {
             throw new AccessDeniedException("Employees cannot review leave requests");
         }
-        if (role == Role.ADMIN || role == Role.HR) {
-            return;
+        Long applicantId = req.getEmployeeId();
+        if (isSelfLeaveReview(applicantId, reviewer)) {
+            throw new AccessDeniedException("Cannot review your own leave request");
         }
-        if (role == Role.MANAGER) {
-            Long mgrKey = resolveActorEmployeeKey(reviewer);
-            if (!managerEmployeeScopeService.managesEmployee(mgrKey, req.getEmployeeId())) {
-                throw new AccessDeniedException("You can only review leave for employees in your department");
+        Role applicantRole = resolveApplicantRole(applicantId);
+        Long reviewerKey = resolveActorEmployeeKey(reviewer);
+
+        switch (applicantRole) {
+            case EMPLOYEE -> {
+                if (reviewerRole == Role.MANAGER) {
+                    if (managerEmployeeScopeService.managesEmployee(reviewerKey, applicantId)) {
+                        return;
+                    }
+                    throw new AccessDeniedException("Only your department manager can approve this request");
+                }
+                if (reviewerRole == Role.HR || reviewerRole == Role.ADMIN) {
+                    if (lacksDepartmentManager(applicantId)) {
+                        return;
+                    }
+                    throw new AccessDeniedException("This request must be approved by the department manager");
+                }
+                throw new AccessDeniedException("Not allowed to review this leave request");
             }
-            return;
+            case MANAGER -> {
+                if (reviewerRole == Role.HR || reviewerRole == Role.ADMIN) {
+                    return;
+                }
+                throw new AccessDeniedException("Manager leave requests are approved by HR or Admin");
+            }
+            case HR -> {
+                if (reviewerRole == Role.ADMIN) {
+                    return;
+                }
+                throw new AccessDeniedException("HR leave requests are approved by Admin only");
+            }
+            case ADMIN -> {
+                if (reviewerRole == Role.HR) {
+                    return;
+                }
+                throw new AccessDeniedException("Admin leave requests are approved by HR only");
+            }
         }
-        throw new AccessDeniedException("Not allowed to review leave requests");
+    }
+
+    private boolean isSelfLeaveReview(Long applicantEmployeeId, AppUserDetails reviewer) {
+        if (reviewer.getEmployeeId() != null && reviewer.getEmployeeId().equals(applicantEmployeeId)) {
+            return true;
+        }
+        return reviewer.getUserId() != null && reviewer.getUserId().equals(applicantEmployeeId);
+    }
+
+    private Role resolveApplicantRole(Long employeeId) {
+        return userAccountRepository.findByEmployeeId(employeeId)
+                .map(UserAccount::getRole)
+                .orElse(Role.EMPLOYEE);
+    }
+
+    /** Phòng không gắn trưởng phòng → HR/Admin được duyệt thay cho cấp nhân viên. */
+    private boolean lacksDepartmentManager(Long employeeId) {
+        Optional<Employee> emp = employeeRepository.findById(employeeId);
+        if (emp.isEmpty()) {
+            return true;
+        }
+        Long deptId = emp.get().getDepartmentId();
+        if (deptId == null) {
+            return true;
+        }
+        return departmentRepository.findById(deptId)
+                .map(d -> d.getManagerId() == null)
+                .orElse(true);
     }
 
     /** Khóa giống chấm công: employee_id hoặc user id fallback. */

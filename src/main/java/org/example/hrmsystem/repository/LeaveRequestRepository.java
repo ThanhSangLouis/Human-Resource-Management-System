@@ -4,7 +4,10 @@ import org.example.hrmsystem.model.LeaveRequest;
 import org.example.hrmsystem.model.LeaveStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.example.hrmsystem.model.Role;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
@@ -21,6 +24,20 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, Long
     Page<LeaveRequest> findByStatusAndEmployeeIdInOrderByCreatedAtDesc(
             LeaveStatus status,
             Collection<Long> employeeIds,
+            Pageable pageable
+    );
+
+    /**
+     * Đơn chờ duyệt của những người có tài khoản với role thuộc danh sách (JOIN users.employee_id).
+     */
+    @Query("""
+            SELECT lr FROM LeaveRequest lr
+            JOIN UserAccount ua ON ua.employeeId = lr.employeeId
+            WHERE lr.status = :status AND ua.role IN :roles
+            """)
+    Page<LeaveRequest> findByStatusAndApplicantAccountRolesIn(
+            @Param("status") LeaveStatus status,
+            @Param("roles") Collection<Role> roles,
             Pageable pageable
     );
 

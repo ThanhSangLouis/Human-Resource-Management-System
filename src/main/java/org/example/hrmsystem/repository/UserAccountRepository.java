@@ -1,5 +1,6 @@
 package org.example.hrmsystem.repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.example.hrmsystem.model.Role;
@@ -13,6 +14,8 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, Long> 
     boolean existsByUsername(String username);
 
     Optional<UserAccount> findByEmployeeId(Long employeeId);
+
+    List<UserAccount> findByEmployeeIdIn(Collection<Long> employeeIds);
 
     List<UserAccount> findByRole(Role role);
 }
