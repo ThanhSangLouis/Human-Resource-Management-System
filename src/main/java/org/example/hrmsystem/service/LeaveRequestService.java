@@ -3,12 +3,14 @@ package org.example.hrmsystem.service;
 import org.example.hrmsystem.dto.LeaveRequestCreateDto;
 import org.example.hrmsystem.dto.LeaveRequestResponse;
 import org.example.hrmsystem.exception.ResourceNotFoundException;
+import org.example.hrmsystem.model.Attendance;
 import org.example.hrmsystem.model.Employee;
 import org.example.hrmsystem.model.LeaveRequest;
 import org.example.hrmsystem.model.LeaveStatus;
 import org.example.hrmsystem.model.LeaveType;
 import org.example.hrmsystem.model.Role;
 import org.example.hrmsystem.model.UserAccount;
+import org.example.hrmsystem.repository.AttendanceRepository;
 import org.example.hrmsystem.repository.DepartmentRepository;
 import org.example.hrmsystem.repository.EmployeeRepository;
 import org.example.hrmsystem.repository.LeaveRequestRepository;
@@ -20,9 +22,13 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -39,29 +45,35 @@ public class LeaveRequestService {
     private static final Logger log = LoggerFactory.getLogger(LeaveRequestService.class);
 
     private final LeaveRequestRepository leaveRequestRepository;
+    private final AttendanceRepository attendanceRepository;
     private final EmployeeRepository employeeRepository;
     private final ManagerEmployeeScopeService managerEmployeeScopeService;
     private final AttendanceLeaveSyncService attendanceLeaveSyncService;
     private final NotificationService notificationService;
     private final UserAccountRepository userAccountRepository;
     private final DepartmentRepository departmentRepository;
+    private final TaskExecutor notificationTaskExecutor;
 
     public LeaveRequestService(
             LeaveRequestRepository leaveRequestRepository,
+            AttendanceRepository attendanceRepository,
             EmployeeRepository employeeRepository,
             ManagerEmployeeScopeService managerEmployeeScopeService,
             AttendanceLeaveSyncService attendanceLeaveSyncService,
             NotificationService notificationService,
             UserAccountRepository userAccountRepository,
-            DepartmentRepository departmentRepository
+            DepartmentRepository departmentRepository,
+            @Qualifier("notificationTaskExecutor") TaskExecutor notificationTaskExecutor
     ) {
         this.leaveRequestRepository = leaveRequestRepository;
+        this.attendanceRepository = attendanceRepository;
         this.employeeRepository = employeeRepository;
         this.managerEmployeeScopeService = managerEmployeeScopeService;
         this.attendanceLeaveSyncService = attendanceLeaveSyncService;
         this.notificationService = notificationService;
         this.userAccountRepository = userAccountRepository;
         this.departmentRepository = departmentRepository;
+        this.notificationTaskExecutor = notificationTaskExecutor;
     }
 
     @Transactional
@@ -94,6 +106,7 @@ public class LeaveRequestService {
                 "You already have a pending or approved leave request that overlaps with these dates"
             );
         }
+        assertNoAttendanceConflict(employeeId, dto.getStartDate(), dto.getEndDate());
 
         int totalDays = countWorkingDays(dto.getStartDate(), dto.getEndDate());
 
@@ -184,7 +197,7 @@ public class LeaveRequestService {
 
     @Transactional
     public LeaveRequestResponse approve(Long requestId, AppUserDetails reviewer) {
-        LeaveRequest req = leaveRequestRepository.findById(requestId)
+        LeaveRequest req = leaveRequestRepository.findByIdForUpdate(requestId)
                 .orElseThrow(() -> new ResourceNotFoundException("Leave request not found: " + requestId));
         if (req.getStatus() != LeaveStatus.PENDING) {
             throw new IllegalArgumentException("Only PENDING requests can be approved");
@@ -201,7 +214,7 @@ public class LeaveRequestService {
                 req.getEmployeeId(), req.getStartDate(), req.getEndDate());
 
         employeeRepository.findById(req.getEmployeeId()).ifPresent(emp ->
-                notificationService.notifyLeaveDecision(
+                scheduleLeaveDecisionNotifyAfterCommit(
                         emp.getId(),
                         emp.getEmail(),
                         emp.getFullName(),
@@ -216,7 +229,7 @@ public class LeaveRequestService {
 
     @Transactional
     public LeaveRequestResponse reject(Long requestId, AppUserDetails reviewer) {
-        LeaveRequest req = leaveRequestRepository.findById(requestId)
+        LeaveRequest req = leaveRequestRepository.findByIdForUpdate(requestId)
                 .orElseThrow(() -> new ResourceNotFoundException("Leave request not found: " + requestId));
         if (req.getStatus() != LeaveStatus.PENDING) {
             throw new IllegalArgumentException("Only PENDING requests can be rejected");
@@ -231,7 +244,7 @@ public class LeaveRequestService {
 
         employeeRepository.findById(req.getEmployeeId()).ifPresent(emp -> {
             log.info("[HRM-MAIL] leave reject notify employeeId={} email={}", emp.getId(), emp.getEmail());
-            notificationService.notifyLeaveDecision(
+            scheduleLeaveDecisionNotifyAfterCommit(
                     emp.getId(),
                     emp.getEmail(),
                     emp.getFullName(),
@@ -344,6 +357,55 @@ public class LeaveRequestService {
             current = current.plusDays(1);
         }
         return count;
+    }
+
+    /**
+     * Gửi email/notification sau khi transaction duyệt commit — phản hồi API nhanh, SMTP không chặn HTTP.
+     */
+    private void scheduleLeaveDecisionNotifyAfterCommit(
+            Long employeeId,
+            String email,
+            String fullName,
+            boolean approved,
+            LocalDate start,
+            LocalDate end
+    ) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            notificationTaskExecutor.execute(() -> runLeaveNotifySafe(employeeId, email, fullName, approved, start, end));
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                notificationTaskExecutor.execute(() -> runLeaveNotifySafe(employeeId, email, fullName, approved, start, end));
+            }
+        });
+    }
+
+    private void runLeaveNotifySafe(
+            Long employeeId,
+            String email,
+            String fullName,
+            boolean approved,
+            LocalDate start,
+            LocalDate end
+    ) {
+        try {
+            notificationService.notifyLeaveDecision(employeeId, email, fullName, approved, start, end);
+        } catch (Exception ex) {
+            log.warn("Leave decision notification failed employeeId={}: {}", employeeId, ex.getMessage());
+        }
+    }
+
+    private void assertNoAttendanceConflict(Long employeeId, LocalDate startDate, LocalDate endDate) {
+        List<Attendance> attendanceInRange = attendanceRepository
+                .findByEmployeeIdAndAttendanceDateBetween(employeeId, startDate, endDate);
+        boolean hasCheckInOrCheckOut = attendanceInRange.stream()
+                .anyMatch(a -> a.getCheckIn() != null || a.getCheckOut() != null);
+        if (hasCheckInOrCheckOut) {
+            throw new IllegalArgumentException(
+                    "Invalid leave request: attendance already exists (check-in/check-out) in selected date range");
+        }
     }
 
     private LeaveRequestResponse toResponse(LeaveRequest lr, String employeeName, String message) {
