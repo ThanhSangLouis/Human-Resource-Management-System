@@ -559,7 +559,7 @@
             <th>Mô tả</th>
             <th>Trưởng phòng</th>
             <th>Ngày cập nhật</th>
-            <th style="width:90px">Thao tác</th>
+            <th style="width:130px">Thao tác</th>
           </tr>
         </thead>
         <tbody id="dept-tbody">
@@ -649,6 +649,48 @@
 
 <!-- Toast container -->
 <div id="toast-container"></div>
+
+<!-- ═══════════════════════════════════════
+     SLIDE PANEL: Danh sách nhân viên theo phòng
+═══════════════════════════════════════ -->
+<div id="emp-panel-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:250;" onclick="closeEmpPanel(event)"></div>
+<div id="emp-panel" style="
+  position:fixed;top:0;right:-520px;width:500px;max-width:96vw;height:100vh;
+  background:#fff;box-shadow:-6px 0 32px rgba(0,0,0,.14);z-index:260;
+  display:flex;flex-direction:column;transition:right .28s cubic-bezier(.4,0,.2,1);
+  font-family:'Inter',sans-serif;
+">
+  <!-- Panel header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px 16px;border-bottom:1px solid #e5e9f2;flex-shrink:0;">
+    <div>
+      <div style="font-size:16px;font-weight:700;color:#1a2035;" id="ep-dept-name">Phòng ban</div>
+      <div style="font-size:12.5px;color:#8a94a6;margin-top:3px;" id="ep-count"></div>
+    </div>
+    <button onclick="closeEmpPanelDirect()" style="background:none;border:none;cursor:pointer;color:#8a94a6;font-size:24px;line-height:1;padding:4px;transition:color .15s;" onmouseenter="this.style.color='#1a2035'" onmouseleave="this.style.color='#8a94a6'">×</button>
+  </div>
+
+  <!-- Manager assign bar (HR/ADMIN only) -->
+  <div id="ep-manager-bar" style="padding:14px 24px;background:#f8f9fc;border-bottom:1px solid #e5e9f2;display:none;flex-shrink:0;">
+    <div style="font-size:12px;font-weight:700;color:#5a6a85;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;">👑 Gán Trưởng Phòng</div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <select id="ep-manager-sel" style="flex:1;padding:8px 12px;border:1px solid #dde2ee;border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
+        <option value="">— Không gán —</option>
+      </select>
+      <button onclick="doAssignManager()" style="background:#2c3e8c;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;flex-shrink:0;transition:background .2s;" onmouseenter="this.style.background='#1e2d6e'" onmouseleave="this.style.background='#2c3e8c'">
+        Gán
+      </button>
+    </div>
+    <div id="ep-manager-err" style="color:#e53e3e;font-size:12px;margin-top:4px;display:none;"></div>
+  </div>
+
+  <!-- Employee list -->
+  <div style="flex:1;overflow-y:auto;padding:16px 24px;" id="ep-list-wrap">
+    <div id="ep-loading" style="text-align:center;padding:40px;color:#8a94a6;">
+      <span class="spinner"></span> Đang tải...
+    </div>
+    <div id="ep-list"></div>
+  </div>
+</div>
 
 <!-- ═══════════════════════════════════════
      JAVASCRIPT
@@ -748,15 +790,27 @@
         : (dept.createdAt ? new Date(dept.createdAt).toLocaleDateString('vi-VN') : '–');
       const manager = dept.managerName || '–';
       const desc = dept.description || '–';
+      const canManage = currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'HR');
       return `
         <tr>
           <td><span style="color:#8a94a6;font-size:13px;">${stt}</span></td>
           <td class="td-name">${escHtml(dept.name)}</td>
           <td class="td-desc" title="${escHtml(dept.description || '')}">${escHtml(desc)}</td>
-          <td class="td-manager">${escHtml(manager)}</td>
+          <td class="td-manager">
+            ${dept.managerId
+              ? `<span style="display:inline-flex;align-items:center;gap:6px;">
+                  <span style="width:26px;height:26px;border-radius:50%;background:#2c3e8c;color:#fff;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;">${escHtml(dept.managerName||'').charAt(0)}</span>
+                  ${escHtml(manager)}
+                </span>`
+              : '<span style="color:#8a94a6;">Chưa gán</span>'}
+          </td>
           <td class="td-date">${updatedAt}</td>
           <td>
             <div class="actions">
+              <button class="btn-icon" style="color:#0ea5e9;" title="Xem nhân viên" onclick="openEmployeePanel(${dept.id}, '${escHtml(dept.name)}')">
+                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+              </button>
+              ${canManage ? `
               <button class="btn-icon edit" title="Chỉnh sửa" onclick="openEditModal(${dept.id})">
                 <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
@@ -768,7 +822,7 @@
                   <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
                   <path d="M10 11v6M14 11v6M9 6V4h6v2"/>
                 </svg>
-              </button>
+              </button>` : ''}
             </div>
           </td>
         </tr>`;
@@ -995,6 +1049,151 @@
   // ── Util ──────────────────────────────────────────────────────────────────
   function escHtml(str) {
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Employee Panel ────────────────────────────────────────────────────────
+  let panelDeptId = null;
+  let panelDeptCurrentManagerId = null;
+
+  async function openEmployeePanel(deptId, deptName) {
+    panelDeptId = deptId;
+    panelDeptCurrentManagerId = null;
+
+    document.getElementById('ep-dept-name').textContent = deptName;
+    document.getElementById('ep-count').textContent = '';
+    document.getElementById('ep-loading').style.display = 'block';
+    document.getElementById('ep-list').innerHTML = '';
+    document.getElementById('ep-manager-bar').style.display = 'none';
+    document.getElementById('ep-manager-err').style.display = 'none';
+
+    // Show panel
+    document.getElementById('emp-panel-overlay').style.display = 'block';
+    setTimeout(() => document.getElementById('emp-panel').style.right = '0', 10);
+
+    await loadPanelEmployees(deptId);
+  }
+
+  async function loadPanelEmployees(deptId) {
+    document.getElementById('ep-loading').style.display = 'block';
+    document.getElementById('ep-list').innerHTML = '';
+
+    try {
+      // Load department info (for current manager)
+      const deptRes = await apiFetch(`/departments/${deptId}`);
+      if (deptRes.ok) {
+        const dept = await deptRes.json();
+        panelDeptCurrentManagerId = dept.managerId;
+      }
+
+      // Load employees
+      const res = await apiFetch(`/departments/${deptId}/employees?page=0&size=200&sort=fullName,asc`);
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      const employees = data.content || [];
+
+      document.getElementById('ep-count').textContent = `${employees.length} nhân viên`;
+      document.getElementById('ep-loading').style.display = 'none';
+
+      // Show manager assign bar for ADMIN/HR
+      const canManage = currentUser && (currentUser.role === 'ADMIN' || currentUser.role === 'HR');
+      if (canManage) {
+        const bar = document.getElementById('ep-manager-bar');
+        bar.style.display = 'block';
+        // Populate dropdown
+        const sel = document.getElementById('ep-manager-sel');
+        sel.innerHTML = '<option value="">— Không gán —</option>';
+        employees.forEach(e => {
+          const o = document.createElement('option');
+          o.value = e.id;
+          o.textContent = e.fullName + (e.employeeCode ? ' (' + e.employeeCode + ')' : '') + (e.position ? ' · ' + e.position : '');
+          sel.appendChild(o);
+        });
+        sel.value = panelDeptCurrentManagerId ? String(panelDeptCurrentManagerId) : '';
+      }
+
+      // Render employee cards
+      const listEl = document.getElementById('ep-list');
+      if (!employees.length) {
+        listEl.innerHTML = `
+          <div style="text-align:center;padding:48px 20px;color:#8a94a6;">
+            <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.4" viewBox="0 0 24 24" style="margin-bottom:12px;opacity:.4;"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+            <p style="font-size:14px;">Phòng ban chưa có nhân viên nào</p>
+          </div>`;
+        return;
+      }
+
+      listEl.innerHTML = employees.map(e => {
+        const isManager = panelDeptCurrentManagerId && panelDeptCurrentManagerId == e.id;
+        const initials = (e.fullName || '?').split(' ').map(w => w[0]).slice(-2).join('').toUpperCase();
+        const statusColor = e.status === 'ACTIVE' ? '#276749' : '#b45309';
+        const statusBg   = e.status === 'ACTIVE' ? '#e6f4ea' : '#fff3e0';
+        const statusLabel = e.status === 'ACTIVE' ? 'Đang làm' : (e.status === 'ON_LEAVE' ? 'Nghỉ phép' : e.status || '');
+        return `
+          <div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid #f0f2f8;">
+            <div style="width:42px;height:42px;border-radius:50%;background:${isManager ? '#f5a623' : '#2c3e8c'};color:#fff;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              ${escHtml(initials)}
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13.5px;font-weight:600;color:#1a2035;display:flex;align-items:center;gap:8px;">
+                ${escHtml(e.fullName)}
+                ${isManager ? '<span style="font-size:11px;background:#fff8e1;color:#b7791f;border-radius:12px;padding:2px 8px;font-weight:700;">👑 Trưởng phòng</span>' : ''}
+              </div>
+              <div style="font-size:12.5px;color:#8a94a6;margin-top:2px;">
+                ${e.position ? escHtml(e.position) + ' · ' : ''}${e.employeeCode ? escHtml(e.employeeCode) : ''}
+              </div>
+            </div>
+            <span style="font-size:12px;font-weight:600;padding:3px 10px;border-radius:20px;background:${statusBg};color:${statusColor};flex-shrink:0;">${statusLabel}</span>
+          </div>`;
+      }).join('');
+
+    } catch (err) {
+      document.getElementById('ep-loading').style.display = 'none';
+      document.getElementById('ep-list').innerHTML = `<div style="text-align:center;padding:40px;color:#e53e3e;">❌ Lỗi tải danh sách nhân viên</div>`;
+    }
+  }
+
+  async function doAssignManager() {
+    if (!panelDeptId) return;
+    const sel = document.getElementById('ep-manager-sel');
+    const managerId = sel.value ? Number(sel.value) : null;
+    const errEl = document.getElementById('ep-manager-err');
+    errEl.style.display = 'none';
+
+    try {
+      const res = await apiFetch(`/departments/${panelDeptId}/manager`, {
+        method: 'PATCH',
+        body: JSON.stringify({ managerId })
+      });
+      if (res.status === 400 || res.status === 404) {
+        const err = await res.json().catch(() => ({}));
+        errEl.textContent = err.message || 'Gán trưởng phòng thất bại';
+        errEl.style.display = 'block';
+        return;
+      }
+      if (!res.ok) throw new Error(await res.text());
+
+      const updated = await res.json();
+      panelDeptCurrentManagerId = updated.managerId;
+      showToast(managerId ? 'Gán trưởng phòng thành công! 👑' : 'Đã bỏ gán trưởng phòng');
+      // Reload panel data
+      await loadPanelEmployees(panelDeptId);
+      // Refresh main table
+      loadDepartments();
+    } catch (err) {
+      showToast('Có lỗi xảy ra khi gán trưởng phòng', 'error');
+    }
+  }
+
+  function closeEmpPanel(e) {
+    if (e.target.id === 'emp-panel-overlay') closeEmpPanelDirect();
+  }
+
+  function closeEmpPanelDirect() {
+    document.getElementById('emp-panel').style.right = '-520px';
+    setTimeout(() => {
+      document.getElementById('emp-panel-overlay').style.display = 'none';
+      panelDeptId = null;
+    }, 280);
   }
 
   // Init

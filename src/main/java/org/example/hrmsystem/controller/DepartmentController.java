@@ -1,6 +1,7 @@
 package org.example.hrmsystem.controller;
 
 import jakarta.validation.Valid;
+import org.example.hrmsystem.dto.AssignManagerRequest;
 import org.example.hrmsystem.dto.DepartmentRequest;
 import org.example.hrmsystem.dto.DepartmentResponse;
 import org.example.hrmsystem.dto.EmployeeResponse;
@@ -100,6 +101,21 @@ public class DepartmentController {
             @Valid @RequestBody DepartmentRequest request
     ) {
         return ResponseEntity.ok(departmentService.update(id, request));
+    }
+
+    /**
+     * PATCH /api/departments/{id}/manager
+     * Gán hoặc bỏ gán trưởng phòng (managerId = null → bỏ gán).
+     * Roles: ADMIN, HR
+     */
+    @PatchMapping("/{id}/manager")
+    @PreAuthorize("hasAnyRole('ADMIN','HR')")
+    public ResponseEntity<DepartmentResponse> assignManager(
+            @PathVariable Long id,
+            @RequestBody AssignManagerRequest request
+    ) {
+        DepartmentResponse updated = departmentService.assignManager(id, request.getManagerId());
+        return ResponseEntity.ok(updated);
     }
 
     /**

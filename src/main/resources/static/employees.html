@@ -81,6 +81,27 @@
     .btn-icon.edit:hover { background:#eef2ff; }
     .btn-icon.del { color:#e53e3e; }
     .btn-icon.del:hover { background:#fff5f5; }
+    .btn-icon.acct { color:#7c3aed; }
+    .btn-icon.acct:hover { background:#f5f3ff; }
+
+    /* Account modal tabs */
+    .acct-tabs { display:flex; gap:0; border-bottom:2px solid #f0f2f8; margin-bottom:20px; }
+    .acct-tab { padding:10px 18px; font-size:13px; font-weight:600; color:#8a94a6; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-2px; transition:all .15s; background:none; border-top:none; border-left:none; border-right:none; }
+    .acct-tab.active { color:#2c3e8c; border-bottom-color:#2c3e8c; }
+    .acct-panel { display:none; }
+    .acct-panel.active { display:block; }
+    .acct-info-row { display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:#f8f9fc; border-radius:8px; margin-bottom:10px; }
+    .acct-info-key { font-size:12px; color:#8a94a6; font-weight:600; }
+    .acct-info-val { font-size:13.5px; color:#1a2035; font-weight:600; font-family:monospace; }
+    .role-badge { display:inline-flex; align-items:center; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600; }
+    .role-badge.ADMIN    { background:#ede9fe; color:#6d28d9; }
+    .role-badge.HR       { background:#dbeafe; color:#1d4ed8; }
+    .role-badge.MANAGER  { background:#fef3c7; color:#d97706; }
+    .role-badge.EMPLOYEE { background:#e6f4ea; color:#276749; }
+    .pw-wrap-inline { position:relative; }
+    .pw-wrap-inline input { padding-right:40px; }
+    .pw-toggle-btn { position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:#8a94a6; display:flex; align-items:center; }
+    .pw-toggle-btn:hover { color:#2c3e8c; }
 
     /* ── EMPTY / LOADING ── */
     .empty-state { text-align:center; padding:60px 20px; color:#8a94a6; }
@@ -215,7 +236,7 @@
             <th>Chức vụ</th>
             <th class="sortable" onclick="sortBy('status')">Trạng thái ↕</th>
             <th class="sortable" onclick="sortBy('hireDate')">Ngày vào ↕</th>
-            <th style="width:90px">Thao tác</th>
+            <th style="width:110px">Thao tác</th>
           </tr>
         </thead>
         <tbody id="emp-tbody">
@@ -375,6 +396,92 @@
 
 <div id="toast-container"></div>
 
+<!-- MODAL: Account Management -->
+<div class="overlay" id="acct-overlay" onclick="closeOverlay(event,'acct-overlay')">
+  <div class="modal" style="width:480px;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="acct-modal-title">Quản lý tài khoản</div>
+        <div style="font-size:12px;color:#8a94a6;margin-top:3px;" id="acct-modal-sub"></div>
+      </div>
+      <button class="modal-close" onclick="closeAcctModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <!-- Tabs -->
+      <div class="acct-tabs">
+        <button class="acct-tab active" id="tab-info-btn" onclick="switchTab('info')">👤 Thông tin tài khoản</button>
+        <button class="acct-tab" id="tab-pwd-btn"  onclick="switchTab('pwd')">🔒 Đặt lại mật khẩu</button>
+        <button class="acct-tab" id="tab-user-btn" onclick="switchTab('user')">✉️ Đổi username</button>
+      </div>
+
+      <!-- Tab: Thông tin -->
+      <div class="acct-panel active" id="panel-info">
+        <div id="acct-info-loading" style="text-align:center;color:#8a94a6;padding:20px 0;">Đang tải...</div>
+        <div id="acct-info-content" style="display:none;">
+          <div class="acct-info-row">
+            <span class="acct-info-key">USERNAME</span>
+            <span class="acct-info-val" id="ai-username">–</span>
+          </div>
+          <div class="acct-info-row">
+            <span class="acct-info-key">VAI TRÒ</span>
+            <span id="ai-role">–</span>
+          </div>
+          <div class="acct-info-row">
+            <span class="acct-info-key">TRẠNG THÁI</span>
+            <span class="acct-info-val" id="ai-status">–</span>
+          </div>
+          <div class="acct-info-row">
+            <span class="acct-info-key">MẬT KHẨU</span>
+            <span class="acct-info-val" style="color:#8a94a6;font-size:12px;">•••••••• (BCrypt — không thể xem)</span>
+          </div>
+        </div>
+        <div id="acct-no-account" style="display:none;text-align:center;padding:20px 0;color:#8a94a6;">Nhân viên này chưa có tài khoản đăng nhập.</div>
+      </div>
+
+      <!-- Tab: Đặt lại mật khẩu -->
+      <div class="acct-panel" id="panel-pwd">
+        <div class="form-group">
+          <label>Mật khẩu mới <span class="req">*</span></label>
+          <div class="pw-wrap-inline">
+            <input type="password" id="acct-new-pwd" placeholder="Tối thiểu 6 ký tự" autocomplete="new-password" />
+            <button class="pw-toggle-btn" type="button" onclick="toggleAcctPw('acct-new-pwd',this)">
+              <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <div class="error-msg" id="e-acct-pwd">Mật khẩu phải có ít nhất 6 ký tự.</div>
+        </div>
+        <div class="form-group">
+          <label>Xác nhận mật khẩu <span class="req">*</span></label>
+          <div class="pw-wrap-inline">
+            <input type="password" id="acct-confirm-pwd" placeholder="Nhập lại mật khẩu mới" autocomplete="new-password" />
+            <button class="pw-toggle-btn" type="button" onclick="toggleAcctPw('acct-confirm-pwd',this)">
+              <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <div class="error-msg" id="e-acct-confirm">Mật khẩu xác nhận không khớp.</div>
+        </div>
+        <button class="btn-primary" style="width:100%;justify-content:center;" onclick="submitResetPassword()">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          Đặt lại mật khẩu
+        </button>
+      </div>
+
+      <!-- Tab: Đổi username -->
+      <div class="acct-panel" id="panel-user">
+        <div class="form-group">
+          <label>Username mới (email đăng nhập) <span class="req">*</span></label>
+          <input type="text" id="acct-new-username" placeholder="email@company.com" />
+          <div class="error-msg" id="e-acct-username">Username không hợp lệ hoặc đã tồn tại.</div>
+        </div>
+        <button class="btn-primary" style="width:100%;justify-content:center;" onclick="submitChangeUsername()">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          Cập nhật username
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 const API_BASE = '/api';
 let token = localStorage.getItem('hrm_access_token') || '';
@@ -454,6 +561,7 @@ function renderTable(list) {
     tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><p>Không có nhân viên nào</p></div></td></tr>`;
     return;
   }
+  const isAdmin = currentUser && currentUser.role === 'ADMIN';
 
   const statusLabel = { ACTIVE:'Đang làm việc', INACTIVE:'Tạm nghỉ', RESIGNED:'Đã nghỉ việc' };
   tbody.innerHTML = list.map((e, idx) => {
@@ -487,6 +595,7 @@ function renderTable(list) {
             <button class="btn-icon edit" title="Chỉnh sửa" onclick="openEditModal(${e.id})">
               <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             </button>
+            ${isAdmin ? `<button class="btn-icon acct" title="Quản lý tài khoản" onclick="openAcctModal(${e.id},'${esc(e.fullName)}')"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a4 4 0 0 0-8 0v2"/><circle cx="12" cy="14" r="1.5" fill="currentColor" stroke="none"/></svg></button>` : ''}
             <button class="btn-icon del" title="Nghỉ việc" onclick="openConfirmDelete(${e.id},'${esc(e.fullName)}')">
               <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
             </button>
@@ -751,6 +860,122 @@ function showToast(msg,type='success') {
   setTimeout(()=>el.remove(),3500);
 }
 function esc(str) { return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── Account Management Modal ──────────────────────────────────────────────
+let acctUserId = null; // user account id (NOT employee id)
+
+async function openAcctModal(employeeId, empName) {
+  acctUserId = null;
+  document.getElementById('acct-modal-title').textContent = 'Quản lý tài khoản';
+  document.getElementById('acct-modal-sub').textContent = empName;
+  document.getElementById('acct-info-loading').style.display = 'block';
+  document.getElementById('acct-info-content').style.display = 'none';
+  document.getElementById('acct-no-account').style.display = 'none';
+  document.getElementById('acct-overlay').classList.add('show');
+  switchTab('info');
+
+  try {
+    const res = await apiFetch('/admin/users');
+    document.getElementById('acct-info-loading').style.display = 'none'; // ← luôn ẩn sau khi nhận response
+
+    if (!res.ok) {
+      const errText = res.status === 403 ? 'Bạn không có quyền truy cập (403).' : `Lỗi ${res.status}`;
+      document.getElementById('acct-no-account').style.display = 'block';
+      document.getElementById('acct-no-account').textContent = errText;
+      showToast(errText, 'error');
+      return;
+    }
+
+    const users = await res.json();
+    const userAcct = users.find(u => String(u.employeeId) === String(employeeId));
+
+    if (!userAcct) {
+      document.getElementById('acct-no-account').textContent = 'Nhân viên này chưa có tài khoản đăng nhập.';
+      document.getElementById('acct-no-account').style.display = 'block';
+      return;
+    }
+
+    acctUserId = userAcct.id;
+    document.getElementById('ai-username').textContent = userAcct.username;
+    document.getElementById('ai-role').innerHTML = `<span class="role-badge ${userAcct.role}">${userAcct.role}</span>`;
+    document.getElementById('ai-status').textContent = userAcct.isActive ? '✅ Đang hoạt động' : '🔴 Bị khóa';
+    document.getElementById('acct-new-username').value = userAcct.username;
+    document.getElementById('acct-info-content').style.display = 'block';
+  } catch (err) {
+    document.getElementById('acct-info-loading').style.display = 'none'; // ← ẩn kể cả khi exception
+    document.getElementById('acct-no-account').textContent = 'Lỗi kết nối. Vui lòng thử lại.';
+    document.getElementById('acct-no-account').style.display = 'block';
+    showToast('Lỗi kết nối: ' + (err.message || ''), 'error');
+  }
+}
+
+function closeAcctModal() {
+  document.getElementById('acct-overlay').classList.remove('show');
+  acctUserId = null;
+}
+
+function switchTab(tab) {
+  ['info','pwd','user'].forEach(t => {
+    document.getElementById(`panel-${t}`).classList.toggle('active', t === tab);
+    document.getElementById(`tab-${t}-btn`).classList.toggle('active', t === tab);
+  });
+}
+
+function toggleAcctPw(inputId, btn) {
+  const inp = document.getElementById(inputId);
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  btn.style.color = inp.type === 'text' ? '#2c3e8c' : '#8a94a6';
+}
+
+async function submitResetPassword() {
+  if (!acctUserId) { showToast('Chưa tải được thông tin tài khoản','error'); return; }
+  const pwd     = document.getElementById('acct-new-pwd').value;
+  const confirm = document.getElementById('acct-confirm-pwd').value;
+
+  document.getElementById('e-acct-pwd').classList.remove('show');
+  document.getElementById('e-acct-confirm').classList.remove('show');
+
+  let ok = true;
+  if (pwd.length < 6) { document.getElementById('e-acct-pwd').classList.add('show'); ok = false; }
+  if (pwd !== confirm) { document.getElementById('e-acct-confirm').classList.add('show'); ok = false; }
+  if (!ok) return;
+
+  try {
+    const res = await apiFetch(`/admin/users/${acctUserId}/password`, {
+      method: 'PUT',
+      body: JSON.stringify({ newPassword: pwd })
+    });
+    const data = await res.json();
+    if (!res.ok) { showToast(data.message || 'Lỗi đặt lại mật khẩu', 'error'); return; }
+    showToast('Đặt lại mật khẩu thành công!');
+    document.getElementById('acct-new-pwd').value = '';
+    document.getElementById('acct-confirm-pwd').value = '';
+  } catch { showToast('Lỗi kết nối','error'); }
+}
+
+async function submitChangeUsername() {
+  if (!acctUserId) { showToast('Chưa tải được thông tin tài khoản','error'); return; }
+  const newUsername = document.getElementById('acct-new-username').value.trim();
+  document.getElementById('e-acct-username').classList.remove('show');
+
+  if (!newUsername) { document.getElementById('e-acct-username').classList.add('show'); return; }
+
+  try {
+    const res = await apiFetch(`/admin/users/${acctUserId}/username`, {
+      method: 'PUT',
+      body: JSON.stringify({ newUsername })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      document.getElementById('e-acct-username').textContent = data.message || 'Username đã tồn tại.';
+      document.getElementById('e-acct-username').classList.add('show');
+      return;
+    }
+    document.getElementById('ai-username').textContent = data.newUsername;
+    showToast('Đổi username thành công!');
+    switchTab('info');
+  } catch { showToast('Lỗi kết nối','error'); }
+}
 
 document.getElementById('li-password')?.addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 init();
