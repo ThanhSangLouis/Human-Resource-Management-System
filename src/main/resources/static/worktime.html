@@ -546,12 +546,31 @@ async function loadPendingLeaves(page) {
   next.onclick = () => loadPendingLeaves(p + 1);
   pg.appendChild(next);
 }
+const wtLeaveReviewInFlight = new Set();
+
+function apiErrorMessage(data, fallback) {
+  if (!data || typeof data !== 'object') return fallback;
+  return data.message || data.error || fallback;
+}
+
 async function reviewLeave(id, approve) {
+  if (wtLeaveReviewInFlight.has(id)) return;
+  wtLeaveReviewInFlight.add(id);
+  document.querySelectorAll('#wt-lv-pending-tbody button').forEach(function (b) { b.disabled = true; });
   const path = '/leave/' + id + (approve ? '/approve' : '/reject');
-  const { ok, data } = await apiFetch(path, { method: 'PATCH' });
-  if (!ok) { toast(data.message || 'Thao tác thất bại', true); return; }
-  toast(data.message || (approve ? 'Đã duyệt' : 'Đã từ chối'));
-  loadPendingLeaves(wtPendingLastPage);
+  try {
+    const { ok, status, data } = await apiFetch(path, { method: 'PATCH' });
+    if (!ok) {
+      const msg = apiErrorMessage(data, status >= 500 ? 'Lỗi máy chủ' : 'Thao tác thất bại');
+      toast(msg, true);
+      return;
+    }
+    toast(data.message || (approve ? 'Đã duyệt' : 'Đã từ chối'));
+    await loadPendingLeaves(wtPendingLastPage);
+  } finally {
+    wtLeaveReviewInFlight.delete(id);
+    document.querySelectorAll('#wt-lv-pending-tbody button').forEach(function (b) { b.disabled = false; });
+  }
 }
 function updLvDays() {
   const s = document.getElementById('wt-lv-start').value, e = document.getElementById('wt-lv-end').value;

@@ -18,7 +18,8 @@ import java.util.stream.Collectors;
 
 /**
  * Xác định nhân viên thuộc phạm vi quản lý của trưởng phòng.
- * Hàng chờ duyệt đơn + lịch sử chấm công của Manager chỉ gồm nhân viên vai trò EMPLOYEE (hoặc chưa có tài khoản).
+ * Hàng chờ duyệt đơn: chỉ nhân viên vai trò EMPLOYEE (hoặc chưa có tài khoản) trong phòng.
+ * Lịch sử chấm công: thêm {@link #attendanceVisibleEmployeeIdsForManager} (gồm cả bản thân trưởng phòng).
  */
 @Service
 public class ManagerEmployeeScopeService {
@@ -71,6 +72,18 @@ public class ManagerEmployeeScopeService {
      */
     public Set<Long> managedEmployeeApplicantIds(Long managerEmployeeId) {
         return filterEmployeeApplicantIds(visibleEmployeeIdsForManager(managerEmployeeId));
+    }
+
+    /**
+     * Lịch sử chấm công: trưởng phòng xem được chính mình + nhân viên cấp dưới (EMPLOYEE / chưa có user).
+     */
+    public Set<Long> attendanceVisibleEmployeeIdsForManager(Long managerEmployeeId) {
+        if (managerEmployeeId == null) {
+            return Set.of();
+        }
+        Set<Long> ids = new HashSet<>(managedEmployeeApplicantIds(managerEmployeeId));
+        ids.add(managerEmployeeId);
+        return ids;
     }
 
     private Set<Long> filterEmployeeApplicantIds(Set<Long> employeeIds) {

@@ -41,7 +41,7 @@ public class SecurityConfig {
     @Bean
     public WebSecurityCustomizer webSecurityCustomizer() {
         return (web) -> web.ignoring()
-                .requestMatchers("/*.html", "/frags.js", "/fragments/**", "/uploads/**");
+                .requestMatchers("/*.html", "/frags.js", "/fragments/**", "/uploads/**", "/banner.png");
     }
 
     @Bean
@@ -59,6 +59,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/login", "/login.html", "/favicon.ico").permitAll()
                         .requestMatchers(HttpMethod.GET, "/profile", "/profile.html").permitAll()
                         .requestMatchers(HttpMethod.GET, "/change-password", "/change-password.html").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/login", "/login.html", "/favicon.ico", "/banner.png")
+                                .permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/public/status").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/refresh").permitAll()
