@@ -3,6 +3,8 @@ package org.example.hrmsystem.service;
 import org.example.hrmsystem.dto.LoginRequest;
 import org.example.hrmsystem.dto.LoginResult;
 import org.example.hrmsystem.dto.LoginResponse;
+import org.example.hrmsystem.exception.InvalidRefreshTokenException;
+import org.example.hrmsystem.exception.RefreshTokenExpiredException;
 import org.example.hrmsystem.model.RefreshToken;
 import org.example.hrmsystem.model.UserAccount;
 import org.example.hrmsystem.repository.RefreshTokenRepository;
@@ -74,18 +76,18 @@ public class AuthService {
     @Transactional
     public LoginResult refresh(String refreshTokenValue) {
         if (refreshTokenValue == null || refreshTokenValue.isBlank()) {
-            throw new BadCredentialsException("Invalid refresh token");
+            throw new InvalidRefreshTokenException("Invalid refresh token");
         }
 
         RefreshToken refreshToken = refreshTokenRepository.findByToken(refreshTokenValue.trim())
-                .orElseThrow(() -> new BadCredentialsException("Invalid refresh token"));
+                .orElseThrow(() -> new InvalidRefreshTokenException("Invalid refresh token"));
         if (refreshToken.getExpiresAt().isBefore(LocalDateTime.now())) {
             refreshTokenRepository.deleteByToken(refreshTokenValue.trim());
-            throw new BadCredentialsException("Refresh token expired");
+            throw new RefreshTokenExpiredException("Refresh token expired");
         }
 
         UserAccount account = userAccountRepository.findById(refreshToken.getUserId())
-                .orElseThrow(() -> new BadCredentialsException("Invalid refresh token"));
+                .orElseThrow(() -> new InvalidRefreshTokenException("Invalid refresh token"));
         if (!account.isActive()) {
             throw new DisabledException("Account is inactive");
         }
