@@ -77,113 +77,206 @@
         }
         button:hover { background: var(--primary-hover); }
         button:active { transform: translateY(1px); }
-        .status {
-            margin-top: 14px;
-            font-size: 13px;
+        .remember-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+        .remember-row input[type=checkbox] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--primary);
+            cursor: pointer;
+            flex-shrink: 0;
+            padding: 0;
+            border: none;
+            box-shadow: none;
+        }
+        .remember-row label {
+            margin: 0;
+            font-size: 13.5px;
             color: var(--muted);
-            min-height: 20px;
+            cursor: pointer;
+            user-select: none;
         }
-        .status.ok { color: var(--ok); }
-        .status.bad { color: var(--danger); }
-        .result {
-            margin-top: 12px;
-            white-space: pre-wrap;
-            background: #f8fafc;
-            border: 1px solid #e5e7eb;
-            border-radius: 10px;
-            padding: 10px;
-            font-size: 12px;
-            max-height: 200px;
-            overflow: auto;
+        .pw-wrap { position: relative; }
+        .pw-toggle {
+            position: absolute;
+            right: 10px; top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            width: auto;
+            padding: 4px;
+            cursor: pointer;
+            color: var(--muted);
+            display: flex;
+            align-items: center;
         }
+        .pw-toggle:hover { color: var(--primary); background: none; }
     </style>
 </head>
 <body>
 <div class="wrap">
     <h1>HRM Login</h1>
-    <p class="subtitle">Welcome back. Please sign in to continue.</p>
+    <p class="subtitle">Chào mừng trở lại! Vui lòng đăng nhập để tiếp tục.</p>
 
     <div class="field">
-        <label for="username">Username</label>
-        <input id="username" value="admin" autocomplete="username">
+        <label for="username">Tên đăng nhập</label>
+        <input id="username" autocomplete="username" placeholder="Nhập tên đăng nhập">
     </div>
     <div class="field">
-        <label for="password">Password</label>
-        <input id="password" type="password" value="123456" autocomplete="current-password">
+        <label for="password">Mật khẩu</label>
+        <div class="pw-wrap">
+            <input id="password" type="password" autocomplete="current-password" placeholder="Nhập mật khẩu">
+            <button type="button" id="btnShowPw" class="pw-toggle" title="Hiện/ẩn mật khẩu">
+                <svg id="eye-icon" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+            </button>
+        </div>
     </div>
 
-    <button id="btnLogin">Login</button>
+    <div class="remember-row">
+      <input type="checkbox" id="rememberMe" />
+      <label for="rememberMe">Ghi nhớ đăng nhập</label>
+    </div>
 
-    <div id="status" class="status">Ready.</div>
-    <div id="result" class="result">Access token will be saved in localStorage key: hrm_access_token</div>
+    <button id="btnLogin">Đăng nhập</button>
 </div>
 
 <script>
-    const ACCESS_TOKEN_KEY = "hrm_access_token";
-    const username = document.getElementById("username");
-    const password = document.getElementById("password");
-    const btnLogin = document.getElementById("btnLogin");
-    const statusEl = document.getElementById("status");
-    const resultEl = document.getElementById("result");
+    // ── Storage keys ──────────────────────────────────────────────────────────
+    const TOKEN_KEY      = 'hrm_access_token';
+    const USER_KEY       = 'hrm_user';
+    const REFRESH_KEY    = 'hrm_refresh_token';
+    const REMEMBER_FLAG  = 'hrm_remember';       // 'true' if user chose to persist
+    const REMEMBER_USER  = 'hrm_remember_user';  // saved username
 
+    // ── Elements ──────────────────────────────────────────────────────────────
+    const usernameEl = document.getElementById('username');
+    const passwordEl = document.getElementById('password');
+    const btnLogin   = document.getElementById('btnLogin');
+    const rememberMe = document.getElementById('rememberMe');
+    const btnShowPw  = document.getElementById('btnShowPw');
+
+    // ── Restore state on page load ────────────────────────────────────────────
+    // If user was already logged in (has token) and chose remember → skip login
+    const persistedToken = localStorage.getItem(TOKEN_KEY) ||
+                           sessionStorage.getItem(TOKEN_KEY);
+    if (persistedToken) {
+        window.location.replace('/overview');
+    }
+
+    // Restore remembered username
+    const savedUser = localStorage.getItem(REMEMBER_USER);
+    if (savedUser) {
+        usernameEl.value = savedUser;
+        rememberMe.checked = true;
+        passwordEl.focus();
+    } else {
+        usernameEl.focus();
+    }
+
+    // ── Password show/hide ────────────────────────────────────────────────────
+    btnShowPw.addEventListener('click', function () {
+        const isHidden = passwordEl.type === 'password';
+        passwordEl.type = isHidden ? 'text' : 'password';
+        btnShowPw.style.color = isHidden ? 'var(--primary)' : '';
+    });
+
+    // ── Login ─────────────────────────────────────────────────────────────────
     async function parseJsonSafe(response) {
         const raw = await response.text();
         if (!raw) return {};
         try { return JSON.parse(raw); } catch (e) { return { raw }; }
     }
 
-    function setStatus(text, ok) {
-        statusEl.textContent = text;
-        statusEl.className = "status " + (ok ? "ok" : "bad");
-    }
-
-    btnLogin.addEventListener("click", async () => {
-        setStatus("Logging in...", true);
+    btnLogin.addEventListener('click', async () => {
+        btnLogin.disabled = true;
+        btnLogin.textContent = 'Đang đăng nhập...';
+        clearError();
         try {
-            const res = await fetch("/api/auth/login", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify({
-                    username: username.value.trim(),
-                    password: password.value
+                    username: usernameEl.value.trim(),
+                    password: passwordEl.value
                 })
             });
             const data = await parseJsonSafe(res);
+
             if (!res.ok) {
-                localStorage.removeItem(ACCESS_TOKEN_KEY);
-                setStatus("Login failed (" + res.status + ")", false);
-                resultEl.textContent = JSON.stringify(data, null, 2);
+                showError('Sai tên đăng nhập hoặc mật khẩu.');
+                passwordEl.value = '';
+                passwordEl.focus();
                 return;
             }
 
-            const token = data.accessToken || data.access_token || "";
+            const token = data.accessToken || data.access_token || '';
             if (!token) {
-                localStorage.removeItem(ACCESS_TOKEN_KEY);
-                setStatus("Login failed: token missing", false);
-                resultEl.textContent = JSON.stringify(data, null, 2);
+                showError('Đăng nhập thất bại: không nhận được token.');
                 return;
             }
 
-            const roleNorm = String(data.role || "").trim().toUpperCase();
-            localStorage.setItem(ACCESS_TOKEN_KEY, token);
-            localStorage.setItem("hrm_user", JSON.stringify({
-                username: data.username,
-                role: roleNorm || data.role,
+            // ── Persist strategy based on "remember me" tick ──────────────────
+            const remember = rememberMe.checked;
+            const storage  = remember ? localStorage : sessionStorage;
+            const other    = remember ? sessionStorage : localStorage;
+
+            // Clear from the other storage to avoid conflicts
+            other.removeItem(TOKEN_KEY);
+            other.removeItem(USER_KEY);
+            other.removeItem(REFRESH_KEY);
+
+            const roleNorm = String(data.role || '').trim().toUpperCase();
+            const userObj  = JSON.stringify({
+                username:   data.username,
+                role:       roleNorm || data.role,
                 employeeId: data.employeeId != null ? data.employeeId : data.employee_id
-            }));
-            localStorage.setItem("hrm_refresh_token", data.refreshToken || data.refresh_token || "");
+            });
 
-            setStatus("Đăng nhập thành công! Đang chuyển trang...", true);
+            storage.setItem(TOKEN_KEY,   token);
+            storage.setItem(USER_KEY,    userObj);
+            storage.setItem(REFRESH_KEY, data.refreshToken || data.refresh_token || '');
 
-            const redirectTo = "/overview";
-            setTimeout(() => { window.location.replace(redirectTo); }, 150);
+            // Save or clear username for next visit
+            if (remember) {
+                localStorage.setItem(REMEMBER_USER, usernameEl.value.trim());
+                localStorage.setItem(REMEMBER_FLAG, 'true');
+            } else {
+                localStorage.removeItem(REMEMBER_USER);
+                localStorage.removeItem(REMEMBER_FLAG);
+            }
+
+            window.location.replace('/overview');
+
         } catch (err) {
-            localStorage.removeItem(ACCESS_TOKEN_KEY);
-            setStatus("Request error", false);
-            resultEl.textContent = String(err);
+            showError('Lỗi kết nối, vui lòng thử lại.');
+        } finally {
+            btnLogin.disabled = false;
+            btnLogin.textContent = 'Đăng nhập';
         }
     });
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    function showError(msg) {
+        clearError();
+        const el = document.createElement('p');
+        el.id = 'login-err';
+        el.style.cssText = 'color:#dc2626;font-size:13px;text-align:center;margin-top:12px;animation:fadeIn .2s;';
+        el.textContent = msg;
+        document.querySelector('.wrap').appendChild(el);
+    }
+    function clearError() { document.getElementById('login-err')?.remove(); }
+
+    // Enter to submit
+    [usernameEl, passwordEl].forEach(el =>
+        el.addEventListener('keydown', e => { if (e.key === 'Enter') btnLogin.click(); })
+    );
 </script>
 </body>
 </html>
