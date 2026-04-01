@@ -15,45 +15,29 @@
   const TOKEN_KEY   = 'hrm_access_token';
   const USER_KEY    = 'hrm_user';
   const REFRESH_KEY = 'hrm_refresh_token';
-  const REMEMBER_USER = 'hrm_remember_user';
-  const REMEMBER_FLAG = 'hrm_remember';
-
-  /** Đọc token từ localStorage (remember) hoặc sessionStorage (không remember) */
-  function getStorage() {
-    return localStorage.getItem(TOKEN_KEY) ? localStorage : sessionStorage;
-  }
 
   const HRMFrags = {
-    getToken() {
-      return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY) || null;
-    },
+    getToken() { return localStorage.getItem(TOKEN_KEY); },
 
     getUser() {
-      try {
-        const raw = localStorage.getItem(USER_KEY) || sessionStorage.getItem(USER_KEY);
-        return JSON.parse(raw || 'null');
-      } catch (_) { return null; }
+      try { return JSON.parse(localStorage.getItem(USER_KEY) || 'null'); }
+      catch (_) { return null; }
     },
 
     async logout() {
       try {
         await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
       } catch (_) { /* ignore */ }
-      // Clear both storages
-      [localStorage, sessionStorage].forEach(s => {
-        s.removeItem(TOKEN_KEY);
-        s.removeItem(USER_KEY);
-        s.removeItem(REFRESH_KEY);
-      });
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+      localStorage.removeItem(REFRESH_KEY);
       window.location.href = '/login';
     },
 
     redirectLogin() {
-      [localStorage, sessionStorage].forEach(s => {
-        s.removeItem(TOKEN_KEY);
-        s.removeItem(USER_KEY);
-        s.removeItem(REFRESH_KEY);
-      });
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+      localStorage.removeItem(REFRESH_KEY);
       window.location.href = '/login';
     }
   };
